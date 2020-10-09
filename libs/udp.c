@@ -1,6 +1,6 @@
 #include "udp.h"
 
-Sock *newServer(char *port) {
+Sock *newServerUDP(char *port) {
     struct addrinfo hints, *res;
     int n, errcode;
 
@@ -9,6 +9,7 @@ Sock *newServer(char *port) {
     sfd->addr = (struct sockaddr*)malloc(sizeof(struct sockaddr));
     sfd->res = NULL;
     sfd->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    sfd->stype = UDP;
 
     if (sfd->fd == -1) {
         fprintf(stderr, "failed to create an endpoint\n");
@@ -40,7 +41,7 @@ Sock *newServer(char *port) {
     return sfd;
 }
 
-int receiveFrom(Sock *sfd, char *buffer, int size) {
+int receiveMessageUDP(Sock *sfd, char *buffer, int size) {
     int n;
     socklen_t addrlen = sizeof(struct sockaddr_in);
     n = recvfrom(sfd->fd, buffer, 128, 0, sfd->addr, &addrlen);
@@ -51,7 +52,7 @@ int receiveFrom(Sock *sfd, char *buffer, int size) {
     return n;
 }
 
-int sendTo(Sock *sfd, char *buffer, int size) {
+int sendMessageUDP(Sock *sfd, char *buffer, int size) {
     int n;
     n = sendto(sfd->fd, buffer, size, 0, sfd->addr, (socklen_t)sizeof(struct sockaddr_in));
     if (n == -1) {
@@ -61,7 +62,7 @@ int sendTo(Sock *sfd, char *buffer, int size) {
     return n;
 }
 
-void closeSocket(Sock *sfd) {
+void closeSocketUDP(Sock *sfd) {
     // a server doens't need to hold the list of structures
     // therefore the client must free sfd->res
     // and the server has to free the destination address pointer 'sfd->addr'
@@ -75,13 +76,14 @@ void closeSocket(Sock *sfd) {
     free(sfd);
 }
 
-Sock *newClient(char *hostname, char *port) {
+Sock *newClientUDP(char *hostname, char *port) {
     struct addrinfo hints, *res;
     int n, errcode;
 
     // creates a struct sock and a file descriptor
     Sock *sfd = (Sock*)malloc(sizeof(Sock));
     sfd->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    sfd->stype = UDP;
 
     if (sfd->fd == -1) {
         fprintf(stderr, "failed to create an endpoint\n");

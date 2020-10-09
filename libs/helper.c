@@ -128,3 +128,47 @@ int getWords(char *buffer) {
     }
     return nwords;
 }
+
+Sock *newTCPServer(char *port) {
+    return newServerTCP(port);
+}
+
+Sock *acquire(Sock *sfd) {
+    return acquireTCP(sfd->fd);
+}
+
+int sendMessage(Sock *sfd, char *buffer, int size) {
+    if (sfd->stype == TCP) {
+        sendMessageTCP(sfd->fd, buffer, size);
+    } else {
+        sendMessageUDP(sfd, buffer, size);
+    }
+}
+
+int receiveMessage(Sock *sfd, char *buffer, int size) {
+    if (sfd->stype == TCP) {
+        receiveMessageTCP(sfd->fd, buffer, size);
+    } else {
+        receiveMessageUDP(sfd, buffer, size);
+    }
+}
+
+void closeSocket(Sock *sfd) {
+    if (sfd->stype == TCP) {
+        closeSocketTCP(sfd);
+    } else {
+        closeSocketUDP(sfd);
+    }
+}
+
+Sock *newTCPClient(char *hostname, char *port) {
+    return newClientTCP(hostname, port);
+}
+
+Sock *newUDPServer(char *port) {
+    return newServerUDP(port);
+}
+
+Sock *newUDPClient(char *hostname, char *port) {
+    return newClientUDP(hostname, port);
+}
