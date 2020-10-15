@@ -83,8 +83,8 @@ void delete(Map *myMap) {
 
 int validUID(char *uid) {
     int i = 0;
-    for (; *uid != '\0'; uid++, i++) {
-        if (*uid >= '0' && *uid <= '9' && i < UID_LENGTH) {
+    for (; uid[i] != '\0'; i++) {
+        if (uid[i] >= '0' && uid[i] <= '9' && i < UID_LENGTH) {
             continue;
         } else {
             fprintf(stderr, "invalid uid\n");
