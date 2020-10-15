@@ -5,6 +5,9 @@
 #define PASS_LENGTH 8
 #define FALSE 0
 #define TRUE 1
+#define PD_PORT "57042"
+#define AS_PORT "58042"
+#define FS_PORT "59042" 
 
 enum sockType { TCP, UDP };
 
