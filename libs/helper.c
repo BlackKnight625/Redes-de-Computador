@@ -1,4 +1,5 @@
 #include "helper.h"
+#include <string.h>
 
 char *set(char *string) {
     int size = length(string);
@@ -171,4 +172,43 @@ Sock *newUDPServer(char *port) {
 
 Sock *newUDPClient(char *hostname, char *port) {
     return newClientUDP(hostname, port);
+}
+
+
+
+//Command related
+int canBeACommand(const char command[]) {
+    /*Commands have 3 chars, and if they don't have args, then they must have a \n at the end,
+    hence the > 3 instead of >= 3*/
+    return strlen(command) > 3; 
+}
+
+int isCommand(const char command[], const char* possibleCommand) {
+    char cmd[4]; //Commands only have 3 chars
+    int i;
+
+    //Copying the first 3 chars from possibleCommand
+    for(i = 0; i < 3; i++) {
+        cmd[i] = possibleCommand[i];
+    }
+
+    i++;
+    cmd[i] = '\0';
+
+    return !strcmp(command, cmd);
+}
+
+int pointToArgs(const char** commandAndArgs) {
+    int i;
+
+    //Making i point to the first space
+    for(i = 0; (*commandAndArgs)[i] != ' '; i++) {
+        if((*commandAndArgs)[i] == '\0') {
+            return 0;
+        }
+    }
+
+    *commandAndArgs = i + 1;
+
+    return 1;
 }

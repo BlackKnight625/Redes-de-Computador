@@ -10,7 +10,6 @@
 #include "libs/data.h"
 
 #define SIZE 128
-#define DEFAULT_FS_PORT 59042
 
 /*The program implementing the File Server (FS) should be invoked using the command:
 ./FS [-q FSport] [-n ASIP] [-p ASport] [-v],
@@ -25,6 +24,9 @@ ASport this is the well-known TCP port where the AS server accepts
 requests. This is an optional argument. If omitted, it assumes the value
 58000+GN, where GN is the group number.*/
 
+/*---------------------------------------------
+Global variables
+-----------------------------------------------*/
 char pathname[] = "fileSystem";
 
 //Comands and their replies
@@ -38,6 +40,8 @@ char deleteCommand[] = "DEL";
 char deleteReply[] = "RDL";
 char removeCommand[] = "REM";
 char removeReply[] = "RRM";
+char errorReply[] = "ERR\n";
+
 
 //Control variables
 int verboseMode = 0;
@@ -49,26 +53,92 @@ char* fsport;
 char* asip;
 char* asport;
 
-//Other methods
+
+/*---------------------------------------------
+Methods
+-----------------------------------------------*/
+
+//--------Dealing with commands-------
 void *newClientDealingThread(void* arg) {
     Sock* tcpUserSocket = (Sock*) arg;
     Sock* udpASSocket = newUDPClient(asip, asport);
+    char buffer[SIZE];
+    char* args = buffer;
+
+    while(TRUE) {
+        receiveMessage(tcpUserSocket, buffer, SIZE);
+        //Received a message from the user.
+
+        
+
+        if(pointToArgs(&args)) {
+            //The command has args
+            if(isCommand(listCommand, buffer)) {
+                list(args, tcpUserSocket);
+            }
+            else if(isCommand(retrieveCommand, buffer)) {
+                retrieve(args, tcpUserSocket);
+            }
+            else if(isCommand(uploadCommand, buffer)) {
+                upload(args, tcpUserSocket);
+            }
+            else if(isCommand(deleteCommand, buffer)) {
+                deleteC(args, tcpUserSocket);
+            }
+            else if(isCommand(removeCommand, buffer)) {
+                removeC(args, tcpUserSocket);
+            }
+        }
+        else {
+            //The command does not have args. Send error message
+            reply(errorReply, tcpUserSocket);
+        }
+    }
 }
 
+
+void list(char* args, Sock* replySocket) {
+
+}
+
+void retreive(char* args, Sock* replySocket) {
+
+}
+
+void upload(char* args, Sock* replySocket) {
+
+}
+
+void deleteC(char* args, Sock* replySocket) {
+
+}
+
+void removeC(char* args, Sock* replySocket) {
+
+}
+
+void reply(char reply[], Sock* replySocket) {
+    sendMessage(replySocket, reply, strlen(reply));
+}
+
+//-------------Other methods---------
 void end() {
     //Deleting the map
     delete(myMap);
+    closeSocket(clientConnectionsSocket);
 }
 
 /**
- * Vallidades the given UID and TID, by sending a message to the AS.
+ * Vallidates the given UID and TID, by sending a message to the AS.
  * Returns true if it's valid and false otherwise
  */
-int validade(int UID, int TID) {
+int validate(Sock* verificationSocket, char* UID, char* TID) {
     return 1;
 }
 
-//Main
+/*---------------------------------------------
+Main
+-----------------------------------------------*/
 int main(int argc, char *argv[]) {
     Sock* socket;
     pthread_t threadID;
@@ -99,6 +169,7 @@ int main(int argc, char *argv[]) {
 
     if(fsport == NULL) {
         //Setting default fsport
+        fsport = FS_PORT;
     }
     else {
         if(atoi(fsport) == 0) {
@@ -110,10 +181,12 @@ int main(int argc, char *argv[]) {
 
     if(asip == NULL) {
         //Setting default asip
+        asip = "localhost";
     }
 
     if(asport == NULL) {
         //Setting default asport
+        asport = AS_PORT;
     }
     else {
         if(atoi(fsport) == 0) {
