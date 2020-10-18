@@ -27,5 +27,12 @@ Sock *newTCPClient(char *hostname, char *port);
 Sock *newUDPServer(char *port);
 Sock *newUDPClient(char *hostname, char *port);
 
+/*Verifies if the given command is big enough to be a command, to prevent single chars or only 2 chars
+from being considered, for example*/
+int canBeACommand(const char command[]);
+int isCommand(const char command[], const char* possibleCommand);
+/*Receives a pointer of a char* that points to the beggining of a command and its args. Modifies it
+such that the char* now points to the beggining of the args. Returns 0 if there are no args*/
+int pointToArgs(const char** commandAndArgs);
 
 #endif

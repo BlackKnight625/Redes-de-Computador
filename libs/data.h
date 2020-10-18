@@ -2,6 +2,7 @@
 #define _DATA_H
 
 #define UID_LENGTH 5
+#define TID_LENGTH 4
 #define PASS_LENGTH 8
 #define FALSE 0
 #define TRUE 1
