@@ -5,11 +5,13 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "libs/helper.h"
 #include "libs/data.h"
 
 #define SIZE 128
+#define REPLY_SIZE 512
 
 /*The program implementing the File Server (FS) should be invoked using the command:
 ./FS [-q FSport] [-n ASIP] [-p ASport] [-v],
@@ -27,7 +29,7 @@ requests. This is an optional argument. If omitted, it assumes the value
 /*---------------------------------------------
 Global variables
 -----------------------------------------------*/
-char pathname[] = "fileSystem";
+char pathname[] = "USERS";
 
 //Comands and their replies
 char listCommand[] = "LST";
@@ -40,8 +42,9 @@ char deleteCommand[] = "DEL";
 char deleteReply[] = "RDL";
 char removeCommand[] = "REM";
 char removeReply[] = "RRM";
-char errorReply[] = "ERR\n";
-
+char errorReply[] = "ERR";
+char errorInvalidTIDReply[] = "INV";
+char errorEOFReply[] = "EOF";
 
 //Control variables
 int verboseMode = 0;
@@ -64,49 +67,142 @@ void *newClientDealingThread(void* arg) {
     Sock* udpASSocket = newUDPClient(asip, asport);
     char buffer[SIZE];
     char* args = buffer;
+    char UID[UID_LENGTH + 1], TID[TID_LENGTH + 1];
+    int i;
+    char* replyFirstWord;
 
     while(TRUE) {
         receiveMessage(tcpUserSocket, buffer, SIZE);
         //Received a message from the user.
 
-        
-
         if(pointToArgs(&args)) {
             //The command has args
-            if(isCommand(listCommand, buffer)) {
-                list(args, tcpUserSocket);
+
+            for(i = 0; i < UID_LENGTH; i++) {
+                UID[i] = args[i];
             }
-            else if(isCommand(retrieveCommand, buffer)) {
-                retrieve(args, tcpUserSocket);
+
+            UID[i + 1] = '\0';
+
+            //Making args point to the next arg
+            if(pointToArgs(&args)) {
+                
+                for(i = 0; i < TID_LENGTH; i++) {
+                    TID[i] = args[i];
+                }
+
+                TID[i + 1] = '\0';
+
+                //Making args point to the next arg. It's no longer relevant if there are more args or not
+                pointToArgs(&args);
+
+                if(validate(udpASSocket, UID, TID)) {
+                    if(isCommand(listCommand, buffer)) {
+                        list(args, tcpUserSocket, UID);
+                    }
+                    else if(isCommand(retrieveCommand, buffer)) {
+                        retrieve(args, tcpUserSocket);
+                    }
+                    else if(isCommand(uploadCommand, buffer)) {
+                        upload(args, tcpUserSocket);
+                    }
+                    else if(isCommand(deleteCommand, buffer)) {
+                        deleteC(args, tcpUserSocket);
+                    }
+                    else if(isCommand(removeCommand, buffer)) {
+                        removeC(args, tcpUserSocket);
+                    }
+                }
+                else {
+                    //UID TID Invalid
+                    reply(getReplyForCommand(buffer), errorInvalidTIDReply, tcpUserSocket);
+                }
             }
-            else if(isCommand(uploadCommand, buffer)) {
-                upload(args, tcpUserSocket);
-            }
-            else if(isCommand(deleteCommand, buffer)) {
-                deleteC(args, tcpUserSocket);
-            }
-            else if(isCommand(removeCommand, buffer)) {
-                removeC(args, tcpUserSocket);
+            else {
+                //args does not contain any more args
+                reply(getReplyForCommand(buffer), errorReply, tcpUserSocket);
             }
         }
         else {
             //The command does not have args. Send error message
-            reply(errorReply, tcpUserSocket);
+            reply(getReplyForCommand(buffer), errorReply, tcpUserSocket);
         }
     }
 }
 
 
-void list(char* args, Sock* replySocket) {
-
+char* getReplyForCommand(char command[]) {
+    if(isCommand(command, listCommand)) {
+        return listReply;
+    }
+    else if(isCommand(command, retrieveCommand)) {
+        return retrieveReply;
+    }
+    else if(isCommand(command, uploadCommand)) {
+        return uploadReply;
+    }
+    else if(isCommand(command, deleteCommand)) {
+        return deleteReply;
+    }
+    else if(isCommand(command, removeCommand)) {
+        return removeReply;
+    }
+    else {
+        return "";
+    }
 }
 
-void retreive(char* args, Sock* replySocket) {
+void list(char* args, Sock* replySocket, char UID[]) {
+    DIR *directory;
+    struct dirent *dir;
+    char buffer[REPLY_SIZE];
+    char* bufferPointer = buffer;
+    char replyBuffer[REPLY_SIZE];
+    char filePath[32];
+    int amountFiles = 0;
+    int fileSize;
+    struct stat fileStats;
+    char directoryName[SIZE];
+
+    sprintf(directoryName, "%s/%s", pathname, UID);
+
+    directory = opendir(directoryName);
+
+    if(directory) {
+        while((dir = readdir(directory)) != NULL) {
+            //Getting the file path
+            sprintf(filePath, "%s/%s", UID, dir->d_name);
+
+            //Getting the file statistics
+            if(stat(filePath, &fileStats)) {
+                //Something bad happened
+                reply(listReply, errorReply, replySocket);
+                return;
+            }
+
+            //Adding the file name and its size to the buffer
+            bufferPointer += sprintf(bufferPointer, " %s %d", dir->d_name, fileStats.st_size);
+
+            amountFiles++;
+        }
+
+        closedir(directory);
+
+        sprintf(replyBuffer, "%d %s", amountFiles, buffer);
+
+        reply(listReply, replyBuffer, replySocket);
+    }
+    else {
+        reply(listReply, errorReply, replySocket);
+    }
+}
+
+void retrieve(char* args, Sock* replySocket) {
 
 }
 
 void upload(char* args, Sock* replySocket) {
-
+    FILE* filePointer;
 }
 
 void deleteC(char* args, Sock* replySocket) {
@@ -117,8 +213,29 @@ void removeC(char* args, Sock* replySocket) {
 
 }
 
-void reply(char reply[], Sock* replySocket) {
-    sendMessage(replySocket, reply, strlen(reply));
+void reply(char replyCommand[], char reply[], Sock* replySocket) {
+    char actualReply[512];
+    int i = 0, j = 0;
+    int replyLength = strlen(reply);
+
+    for(; i < COMMAND_LENGTH; i++) {
+        actualReply[i] = replyCommand[i];
+    }
+
+    i++;
+    actualReply[i] = ' ';
+    i++;
+
+    for(; j < replyLength; j++) {
+        actualReply[i] = reply[j];
+        i++;
+    }
+
+    actualReply[j] = '\n';
+
+    //sendMessage(replySocket, actualReply, strlen(actualReply));
+
+    printf("Replying: %s", actualReply);
 }
 
 //-------------Other methods---------
@@ -151,8 +268,8 @@ int main(int argc, char *argv[]) {
         return 0;
     } else {
         //Reading everything
-        for (int i = 1; i < argc - 1; i++) {
-            if(strcmp(argv[i], "-v")) {
+        for (int i = 1; i < argc; i++) {
+            if(strcmp(argv[i], "-v") == 0) {
                 verboseMode = 1;
                 continue;
             }
@@ -189,7 +306,7 @@ int main(int argc, char *argv[]) {
         asport = AS_PORT;
     }
     else {
-        if(atoi(fsport) == 0) {
+        if(atoi(asport) == 0) {
             //The given port is not a number
             fprintf(stderr, "Given ASport is not a number: %s", asport);
             return 0;
