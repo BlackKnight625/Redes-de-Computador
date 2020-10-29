@@ -4,10 +4,10 @@ all: libs/helper.o libs/udp.o libs/tcp.o pd.o fs.o as.o user.o
 	gcc -g -o as libs/helper.o libs/udp.o libs/tcp.o as.o
 	gcc -g -o user libs/helper.o libs/udp.o libs/tcp.o user.o
 
-fs.o: User.c libs/helper.h libs/udp.h libs/tcp.h
+user.o: User.c libs/helper.h libs/udp.h libs/tcp.h
 	gcc -g -o user.o -c User.c
 
-fs.o: AS.c libs/helper.h libs/udp.h libs/tcp.h
+as.o: AS.c libs/helper.h libs/udp.h libs/tcp.h
 	gcc -g -o as.o -c AS.c
 
 fs.o: FS.c libs/helper.h libs/udp.h libs/tcp.h
