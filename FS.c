@@ -320,6 +320,10 @@ int main(int argc, char *argv[]) {
     //Creating socket that listens for new connections
     clientConnectionsSocket = newServerTCPServer(fsport);
 
+
+    list("", NULL, "1");
+
+
     //Listening for connections
     while(TRUE) {
         //Waiting for a client connection
