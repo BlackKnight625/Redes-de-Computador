@@ -26,4 +26,4 @@ libs/helper.o: libs/helper.c libs/helper.h
 	gcc -g -o libs/helper.o -c libs/helper.c
 
 clear:
-	rm *.o libs/*.o pd
+	rm *.o libs/*.o pd fs as user
