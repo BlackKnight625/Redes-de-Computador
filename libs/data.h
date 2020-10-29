@@ -5,6 +5,7 @@
 #define TID_LENGTH 4
 #define PASS_LENGTH 8
 #define COMMAND_LENGTH 3
+#define VALIDATION_CODE_LENGTH 4
 #define FALSE 0
 #define TRUE 1
 #define PD_PORT "57042"

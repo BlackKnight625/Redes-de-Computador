@@ -33,6 +33,6 @@ int canBeACommand(const char command[]);
 int isCommand(const char command[], const char* possibleCommand);
 /*Receives a pointer of a char* that points to the beggining of a command and its args. Modifies it
 such that the char* now points to the beggining of the args. Returns 0 if there are no args*/
-int pointToArgs(const char** commandAndArgs);
+int pointToArgs(char** commandAndArgs);
 
 #endif

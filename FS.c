@@ -61,6 +61,122 @@ char* asport;
 Methods
 -----------------------------------------------*/
 
+char* getReplyForCommand(char command[]) {
+    if(isCommand(command, listCommand)) {
+        return listReply;
+    }
+    else if(isCommand(command, retrieveCommand)) {
+        return retrieveReply;
+    }
+    else if(isCommand(command, uploadCommand)) {
+        return uploadReply;
+    }
+    else if(isCommand(command, deleteCommand)) {
+        return deleteReply;
+    }
+    else if(isCommand(command, removeCommand)) {
+        return removeReply;
+    }
+    else {
+        return "";
+    }
+}
+
+void reply(char replyCommand[], char reply[], Sock* replySocket) {
+    char actualReply[512];
+    int i = 0, j = 0;
+    int replyLength = strlen(reply);
+
+    for(; i < COMMAND_LENGTH; i++) {
+        actualReply[i] = replyCommand[i];
+    }
+
+    i++;
+    actualReply[i] = ' ';
+    i++;
+
+    for(; j < replyLength; j++) {
+        actualReply[i] = reply[j];
+        i++;
+    }
+
+    actualReply[j] = '\n';
+
+    //sendMessage(replySocket, actualReply, strlen(actualReply));
+
+    printf("Replying: %s", actualReply);
+}
+
+/**
+ * Vallidates the given UID and TID, by sending a message to the AS.
+ * Returns true if it's valid and false otherwise
+ */
+int validate(Sock* verificationSocket, char* UID, char* TID) {
+    return 1;
+}
+
+//Dealing with commands
+void list(char* args, Sock* replySocket, char UID[]) {
+    DIR *directory;
+    struct dirent *dir;
+    char buffer[REPLY_SIZE];
+    char* bufferPointer = buffer;
+    char replyBuffer[REPLY_SIZE];
+    char filePath[512];
+    int amountFiles = 0;
+    int fileSize;
+    struct stat fileStats;
+    char directoryName[SIZE];
+
+    sprintf(directoryName, "%s/%s", pathname, UID);
+
+    directory = opendir(directoryName);
+
+    if(directory) {
+        while((dir = readdir(directory)) != NULL) {
+            //Getting the file path
+            sprintf(filePath, "%s/%s", UID, dir->d_name);
+
+            //Getting the file statistics
+            if(stat(filePath, &fileStats)) {
+                //Something bad happened
+                reply(listReply, errorReply, replySocket);
+                return;
+            }
+
+            //Adding the file name and its size to the buffer
+            bufferPointer += sprintf(bufferPointer, " %s %ld", dir->d_name, fileStats.st_size);
+
+            amountFiles++;
+        }
+
+        closedir(directory);
+
+        sprintf(replyBuffer, "%d %s", amountFiles, buffer);
+
+        reply(listReply, replyBuffer, replySocket);
+    }
+    else {
+        reply(listReply, errorReply, replySocket);
+    }
+}
+
+void retrieve(char* args, Sock* replySocket) {
+
+}
+
+void upload(char* args, Sock* replySocket) {
+    FILE* filePointer;
+}
+
+void deleteC(char* args, Sock* replySocket) {
+
+}
+
+void removeC(char* args, Sock* replySocket) {
+
+}
+
 //--------Dealing with commands-------
 void *newClientDealingThread(void* arg) {
     Sock* tcpUserSocket = (Sock*) arg;
@@ -130,127 +246,11 @@ void *newClientDealingThread(void* arg) {
     }
 }
 
-
-char* getReplyForCommand(char command[]) {
-    if(isCommand(command, listCommand)) {
-        return listReply;
-    }
-    else if(isCommand(command, retrieveCommand)) {
-        return retrieveReply;
-    }
-    else if(isCommand(command, uploadCommand)) {
-        return uploadReply;
-    }
-    else if(isCommand(command, deleteCommand)) {
-        return deleteReply;
-    }
-    else if(isCommand(command, removeCommand)) {
-        return removeReply;
-    }
-    else {
-        return "";
-    }
-}
-
-void list(char* args, Sock* replySocket, char UID[]) {
-    DIR *directory;
-    struct dirent *dir;
-    char buffer[REPLY_SIZE];
-    char* bufferPointer = buffer;
-    char replyBuffer[REPLY_SIZE];
-    char filePath[32];
-    int amountFiles = 0;
-    int fileSize;
-    struct stat fileStats;
-    char directoryName[SIZE];
-
-    sprintf(directoryName, "%s/%s", pathname, UID);
-
-    directory = opendir(directoryName);
-
-    if(directory) {
-        while((dir = readdir(directory)) != NULL) {
-            //Getting the file path
-            sprintf(filePath, "%s/%s", UID, dir->d_name);
-
-            //Getting the file statistics
-            if(stat(filePath, &fileStats)) {
-                //Something bad happened
-                reply(listReply, errorReply, replySocket);
-                return;
-            }
-
-            //Adding the file name and its size to the buffer
-            bufferPointer += sprintf(bufferPointer, " %s %d", dir->d_name, fileStats.st_size);
-
-            amountFiles++;
-        }
-
-        closedir(directory);
-
-        sprintf(replyBuffer, "%d %s", amountFiles, buffer);
-
-        reply(listReply, replyBuffer, replySocket);
-    }
-    else {
-        reply(listReply, errorReply, replySocket);
-    }
-}
-
-void retrieve(char* args, Sock* replySocket) {
-
-}
-
-void upload(char* args, Sock* replySocket) {
-    FILE* filePointer;
-}
-
-void deleteC(char* args, Sock* replySocket) {
-
-}
-
-void removeC(char* args, Sock* replySocket) {
-
-}
-
-void reply(char replyCommand[], char reply[], Sock* replySocket) {
-    char actualReply[512];
-    int i = 0, j = 0;
-    int replyLength = strlen(reply);
-
-    for(; i < COMMAND_LENGTH; i++) {
-        actualReply[i] = replyCommand[i];
-    }
-
-    i++;
-    actualReply[i] = ' ';
-    i++;
-
-    for(; j < replyLength; j++) {
-        actualReply[i] = reply[j];
-        i++;
-    }
-
-    actualReply[j] = '\n';
-
-    //sendMessage(replySocket, actualReply, strlen(actualReply));
-
-    printf("Replying: %s", actualReply);
-}
-
 //-------------Other methods---------
 void end() {
     //Deleting the map
     delete(myMap);
     closeSocket(clientConnectionsSocket);
-}
-
-/**
- * Vallidates the given UID and TID, by sending a message to the AS.
- * Returns true if it's valid and false otherwise
- */
-int validate(Sock* verificationSocket, char* UID, char* TID) {
-    return 1;
 }
 
 /*---------------------------------------------
@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
     mkdir(pathname, 0777);
 
     //Creating socket that listens for new connections
-    clientConnectionsSocket = newServerTCPServer(fsport);
+    clientConnectionsSocket = newTCPServer(fsport);
 
 
     list("", NULL, "1");
