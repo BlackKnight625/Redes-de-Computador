@@ -116,18 +116,65 @@ int validPASS(char *pw) {
     return TRUE;
 }
 
-int getWords(char *buffer) {
-    int nwords = 0;
-    char lastChar = ' ';
+char *nextWord(char *buffer, int *size) {
+    char *wordIni = NULL; 
+    int foundWord = 0;
+    int wordSize = 0;
+
+    while (!foundWord && *buffer != '\0') {
+        // if found a character that is not a white space
+        if (*buffer >= '!' && *buffer <= '~') {
+            wordIni = buffer;
+            wordSize++;
+            foundWord = 1;
+        } 
+        buffer++;
+    }
+
     for (; *buffer != '\0'; buffer++) {
-        if (*buffer != ' ' && lastChar == ' ') {
-            nwords++;
-            lastChar = *buffer;
+        // if found a white space
+        if (!(*buffer >= '!' && *buffer <= '~')) {
+            break;
         } else {
-            lastChar = *buffer;
+            wordSize++;
         }
     }
+
+    *size = wordSize;
+    return wordIni;
+}
+
+int getWords(char *buffer) {
+    int nwords = 0;
+    int size;
+    while ((buffer = nextWord(buffer, &size)) != NULL) {
+        nwords++;
+        buffer += size;
+    }
     return nwords;
+}
+
+// always check whether or not the pointer is NULL
+// this returns the pointer to the nth-1 word, but it doesnt terminate with \0
+// although you can easily do it with the help of size variable
+char *getWordAt(char *buffer, int n) {
+    if (n < 0) {
+        fprintf(stderr, "invalid argument n: %d\n", n);
+        return NULL;
+    } 
+
+    int size;
+    while ((buffer = nextWord(buffer, &size)) != NULL) {
+        if (n == 0) {
+            char *word = (char*)calloc(size, sizeof(char));
+            strncpy(word, buffer, size);
+            return word;
+        }
+
+        buffer += size;
+        n--;
+    }
+    return NULL;
 }
 
 Sock *newTCPServer(char *port) {
@@ -173,8 +220,6 @@ Sock *newUDPServer(char *port) {
 Sock *newUDPClient(char *hostname, char *port) {
     return newClientUDP(hostname, port);
 }
-
-
 
 //Command related
 int canBeACommand(const char command[]) {
