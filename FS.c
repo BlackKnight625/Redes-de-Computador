@@ -27,6 +27,15 @@ requests. This is an optional argument. If omitted, it assumes the value
 58000+GN, where GN is the group number.*/
 
 /*---------------------------------------------
+Structs
+-----------------------------------------------*/
+typedef struct socknode {
+    Sock* sock;
+    struct socknode* next;
+    int freed;
+} SockNode;
+
+/*---------------------------------------------
 Global variables
 -----------------------------------------------*/
 char pathname[] = "USERS";
@@ -42,9 +51,12 @@ char deleteCommand[] = "DEL";
 char deleteReply[] = "RDL";
 char removeCommand[] = "REM";
 char removeReply[] = "RRM";
+
 char errorReply[] = "ERR";
 char errorInvalidTIDReply[] = "INV";
 char errorEOFReply[] = "EOF";
+
+char closeConnectionCommand[] = "CLS";
 
 //Control variables
 int verboseMode = 0;
@@ -55,7 +67,8 @@ Map* myMap;
 char* fsport;
 char* asip;
 char* asport;
-
+SockNode* firstSockNode;
+SockNode* lastSockNode;
 
 /*---------------------------------------------
 Methods
@@ -228,6 +241,13 @@ void *newClientDealingThread(void* arg) {
                     else if(isCommand(removeCommand, buffer)) {
                         removeC(args, tcpUserSocket);
                     }
+                    else if(isCommand(closeConnectionCommand, buffer)) {
+                        //Closing connection
+                        printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
+                        closeSocket(tcpUserSocket);
+                        closeSocket(udpASSocket);
+                        break;
+                    }
                 }
                 else {
                     //UID TID Invalid
@@ -248,9 +268,27 @@ void *newClientDealingThread(void* arg) {
 
 //-------------Other methods---------
 void end() {
+    SockNode* auxSockNode, *auxSockNode2;
+    int size = strlen(closeConnectionCommand);
+
     //Deleting the map
     delete(myMap);
     closeSocket(clientConnectionsSocket);
+
+    auxSockNode = firstSockNode;
+
+    while(auxSockNode != NULL) {
+        if(!auxSockNode->freed) {
+            write(auxSockNode->sock->fd, closeConnectionCommand, size);
+
+            auxSockNode->freed = 1;
+            auxSockNode2 = auxSockNode;
+
+            free(auxSockNode);
+
+            auxSockNode = auxSockNode2;
+        }
+    }
 }
 
 /*---------------------------------------------
@@ -259,6 +297,7 @@ Main
 int main(int argc, char *argv[]) {
     Sock* socket;
     pthread_t threadID;
+    SockNode* auxSockNode;
 
     //Reading the input into a Map
     myMap = newMap();
@@ -328,7 +367,25 @@ int main(int argc, char *argv[]) {
     while(TRUE) {
         //Waiting for a client connection
         socket = acquire(clientConnectionsSocket);
-        pthread_create(&threadID, NULL, newClientDealingThread, (void*) socket);
+        pthread_create(&threadID, (pthread_attr_t *) NULL, &newClientDealingThread, (void*) socket);
+
+        if(firstSockNode == NULL) {
+            firstSockNode = (SockNode*) malloc(sizeof(SockNode));
+            lastSockNode = firstSockNode;
+
+            firstSockNode->sock = socket;
+            firstSockNode->next = NULL;
+            firstSockNode->freed = 0;
+        }
+        else {
+            auxSockNode = (SockNode*) malloc(sizeof(SockNode));
+            lastSockNode->next = auxSockNode;
+            lastSockNode = auxSockNode;
+
+            auxSockNode->sock = socket;
+            auxSockNode->next = NULL;
+            auxSockNode->freed = 0;
+        }
     }
 
     end();
