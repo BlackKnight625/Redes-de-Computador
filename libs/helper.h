@@ -13,6 +13,7 @@ void put(Map *myMap, char *key, char *value);
 char *get(Map *myMap, char *key);
 void print(Map *myMap);
 void delete(Map *myMap);
+void removeElement(Map *myMap, char *key);
 void rm(Element *element);
 int validUID(char *uid);
 int validPASS(char *pw);
