@@ -60,6 +60,24 @@ void print(Map *myMap) {
     }
 }
 
+void removeElement(Map *myMap, char *key) {
+    Element *element = myMap->elements;
+    Element *last = element;
+    while (element != NULL) {
+        if (strcmp(element->key, key) != 0) {
+            last = element;
+            element = element->next;
+            continue;
+        } else {
+            last->next = element->next;
+            free(element->key);
+            free(element->value);
+            free(element);
+            break;
+        }
+    }
+}
+
 void rm(Element *element) {
     if (element == NULL) {
         return;

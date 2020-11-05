@@ -15,8 +15,8 @@ enum command{
 };
 
 typedef struct user {
-    char uid[UID_LENGTH];
-    char pw[PASS_LENGTH];
+    char uid[UID_LENGTH+1];
+    char pw[PASS_LENGTH+1];
 } User;
 
 /* 
@@ -32,21 +32,16 @@ ASport: port where AS accepts requests, if omitted assumes value of 58000+GN whe
 
 int registerUser(char *uid, char *pw) {
     char buffer[SIZE];
-    char op[SIZE], status[4];
+    char op[COMMAND_LENGTH+1], status[4];
     Sock *sfd = newUDPClient(asip, asport);
 
-    if (validUID(uid) && validPASS(pw)) {
-        memset(buffer, 0, SIZE);
-        sprintf(buffer, "REG %s %s %s %s\n", uid, pw, pdip, pdport);
+    memset(buffer, 0, SIZE);
+    sprintf(buffer, "REG %s %s %s %s\n", uid, pw, pdip, pdport);
+    sendMessage(sfd, buffer, strlen(buffer));
 
-        sendMessage(sfd, buffer, strlen(buffer));
-
-        int n = receiveMessage(sfd, buffer, SIZE);
-
-        buffer[n] = '\0';
-
-        printf("%s", buffer);
-    }
+    int n = receiveMessage(sfd, buffer, SIZE);
+    buffer[n] = '\0';
+    printf("%s", buffer);
 
     closeSocket(sfd);
 
@@ -61,17 +56,15 @@ int registerUser(char *uid, char *pw) {
 
 int unregisterUser(User *user) {
     char buffer[SIZE];
-    char op[SIZE], status[4];
-    memset(buffer, 0, SIZE);
+    char op[COMMAND_LENGTH+1], status[4];
     Sock *sfd = newUDPClient(asip, asport);
-    sprintf(buffer, "UNR %s %s\n", user->uid, user->pw);
 
+    memset(buffer, 0, SIZE);
+    sprintf(buffer, "UNR %s %s\n", user->uid, user->pw);
     sendMessage(sfd, buffer, strlen(buffer));
 
     int n = receiveMessage(sfd, buffer, SIZE);
-
     buffer[n] = '\0';
-
     printf("%s", buffer);
 
     closeSocket(sfd);
@@ -87,7 +80,7 @@ int unregisterUser(User *user) {
 
 enum command keyboardCommand(User *user) {
     char buffer[SIZE];
-    char op[SIZE], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
+    char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
 
     memset(buffer, 0, SIZE);
     fgets(buffer, SIZE, stdin);
@@ -117,7 +110,7 @@ enum command keyboardCommand(User *user) {
 
 void getASCommands(Sock *sfd, User *user) {
     char buffer[SIZE];
-    char op[SIZE], uid[UID_LENGTH+1], vc[VALIDATION_CODE_LENGTH+1];
+    char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], vc[VALIDATION_CODE_LENGTH+1];
     char fop[SIZE], fname[SIZE];
 
     memset(buffer, 0, SIZE);
