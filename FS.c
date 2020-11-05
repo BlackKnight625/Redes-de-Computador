@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 
 #include "libs/helper.h"
 #include "libs/data.h"
@@ -100,20 +101,22 @@ void reply(char replyCommand[], char reply[], Sock* replySocket) {
     int i = 0, j = 0;
     int replyLength = strlen(reply);
 
+    //Copying the reply command to the actual reply
     for(; i < COMMAND_LENGTH; i++) {
         actualReply[i] = replyCommand[i];
     }
 
-    i++;
     actualReply[i] = ' ';
     i++;
 
+    //Copying the rest of the reply to the actual reply
     for(; j < replyLength; j++) {
         actualReply[i] = reply[j];
         i++;
     }
 
-    actualReply[j] = '\n';
+    actualReply[i] = '\n';
+    actualReply[i + 1] = '\0';
 
     //sendMessage(replySocket, actualReply, strlen(actualReply));
 
@@ -124,7 +127,7 @@ void reply(char replyCommand[], char reply[], Sock* replySocket) {
  * Vallidates the given UID and TID, by sending a message to the AS.
  * Returns true if it's valid and false otherwise
  */
-int validate(Sock* verificationSocket, char* UID, char* TID) {
+int validate(char* UID, char* TID) {
     return 1;
 }
 
@@ -137,7 +140,6 @@ void list(char* args, Sock* replySocket, char UID[]) {
     char replyBuffer[REPLY_SIZE];
     char filePath[512];
     int amountFiles = 0;
-    int fileSize;
     struct stat fileStats;
     char directoryName[SIZE];
 
@@ -145,10 +147,16 @@ void list(char* args, Sock* replySocket, char UID[]) {
 
     directory = opendir(directoryName);
 
-    if(directory) {
+    buffer[0] = '\0';
+
+    if(directory != NULL) {
         while((dir = readdir(directory)) != NULL) {
             //Getting the file path
-            sprintf(filePath, "%s/%s", UID, dir->d_name);
+            sprintf(filePath, "%s/%s/%s\0", pathname, UID, dir->d_name);
+
+            if(strcmp(dir->d_name, "..") == 0 || strcmp(dir->d_name, ".") == 0) {
+                continue;
+            }
 
             //Getting the file statistics
             if(stat(filePath, &fileStats)) {
@@ -158,24 +166,33 @@ void list(char* args, Sock* replySocket, char UID[]) {
             }
 
             //Adding the file name and its size to the buffer
-            bufferPointer += sprintf(bufferPointer, " %s %ld", dir->d_name, fileStats.st_size);
+            bufferPointer += sprintf(bufferPointer, "%s %ld ", dir->d_name, fileStats.st_size);
 
             amountFiles++;
         }
 
         closedir(directory);
 
-        sprintf(replyBuffer, "%d %s", amountFiles, buffer);
+        bufferPointer[0] = '\0';
 
-        reply(listReply, replyBuffer, replySocket);
+        if(amountFiles == 0) {
+            //There are no files
+            reply(listReply, errorEOFReply, replySocket);
+        }
+        else {
+            sprintf(replyBuffer, "%d %s", amountFiles, buffer);
+
+            reply(listReply, replyBuffer, replySocket);
+        }
     }
     else {
+        printf("Trying to open %s\n", directoryName);
         reply(listReply, errorReply, replySocket);
     }
 }
 
 void retrieve(char* args, Sock* replySocket) {
-
+    
 }
 
 void upload(char* args, Sock* replySocket) {
@@ -190,15 +207,32 @@ void removeC(char* args, Sock* replySocket) {
 
 }
 
+void checkDirExists_IfNotCreate(char UID[]) {
+    char directoryPath[SIZE];
+
+    sprintf(directoryPath, "%s/%s", pathname, UID);
+
+    DIR* dir = opendir(directoryPath);
+    if (dir) {
+        /* Directory exists. */
+        closedir(dir);
+    } else if (errno == ENOENT) {
+        /* Directory does not exist. */
+        mkdir(directoryPath, 0777);
+    } else {
+        /* opendir() failed for some other reason. */
+    }
+}
+
 //--------Dealing with commands-------
 void *newClientDealingThread(void* arg) {
     Sock* tcpUserSocket = (Sock*) arg;
-    Sock* udpASSocket = newUDPClient(asip, asport);
     char buffer[SIZE];
     char* args = buffer;
     char UID[UID_LENGTH + 1], TID[TID_LENGTH + 1];
     int i;
     char* replyFirstWord;
+    int firstInstruction = 1;
 
     while(TRUE) {
         receiveMessage(tcpUserSocket, buffer, SIZE);
@@ -213,6 +247,12 @@ void *newClientDealingThread(void* arg) {
 
             UID[i + 1] = '\0';
 
+            if(firstInstruction) {
+                /*First time dealing with user instructions. Create directory if it doesn't exist*/
+                checkDirExists_IfNotCreate(UID);
+                firstInstruction = 0;
+            }
+
             //Making args point to the next arg
             if(pointToArgs(&args)) {
                 
@@ -225,7 +265,7 @@ void *newClientDealingThread(void* arg) {
                 //Making args point to the next arg. It's no longer relevant if there are more args or not
                 pointToArgs(&args);
 
-                if(validate(udpASSocket, UID, TID)) {
+                if(validate(UID, TID)) {
                     if(isCommand(listCommand, buffer)) {
                         list(args, tcpUserSocket, UID);
                     }
@@ -245,7 +285,6 @@ void *newClientDealingThread(void* arg) {
                         //Closing connection
                         printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
                         closeSocket(tcpUserSocket);
-                        closeSocket(udpASSocket);
                         break;
                     }
                 }
@@ -302,20 +341,15 @@ int main(int argc, char *argv[]) {
     //Reading the input into a Map
     myMap = newMap();
 
-    if (argc <= 1) {
-        fprintf(stderr, "not enough arguments\n");
-        return 0;
-    } else {
-        //Reading everything
-        for (int i = 1; i < argc; i++) {
-            if(strcmp(argv[i], "-v") == 0) {
-                verboseMode = 1;
-                continue;
-            }
-
-            put(myMap, argv[i], argv[i+1]);
-            i++;
+    //Reading everything
+    for (int i = 1; i < argc; i++) {
+        if(strcmp(argv[i], "-v") == 0) {
+            verboseMode = 1;
+            continue;
         }
+
+        put(myMap, argv[i], argv[i+1]);
+        i++;
     }
 
     //Checking the input in the map
@@ -364,7 +398,7 @@ int main(int argc, char *argv[]) {
 
 
     //Listening for connections
-    while(TRUE) {
+    /*while(TRUE) {
         //Waiting for a client connection
         socket = acquire(clientConnectionsSocket);
         pthread_create(&threadID, (pthread_attr_t *) NULL, &newClientDealingThread, (void*) socket);
@@ -386,7 +420,7 @@ int main(int argc, char *argv[]) {
             auxSockNode->next = NULL;
             auxSockNode->freed = 0;
         }
-    }
+    }*/
 
     end();
 
