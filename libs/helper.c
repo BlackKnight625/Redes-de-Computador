@@ -243,17 +243,16 @@ int isCommand(const char command[], const char* possibleCommand) {
     return !strcmp(command, cmd);
 }
 
-int pointToArgs(const char** commandAndArgs) {
-    int i;
-
+int pointToArgs(char** commandAndArgs) {
     //Making i point to the first space
-    for(i = 0; (*commandAndArgs)[i] != ' '; i++) {
-        if((*commandAndArgs)[i] == '\0') {
+    for(; (*commandAndArgs)[0] != ' '; *commandAndArgs++) {
+        if((*commandAndArgs)[0] == '\0') {
+            //Reached the end of the string, which means there are no args
             return 0;
         }
     }
 
-    *commandAndArgs = i + 1;
+    *commandAndArgs++;
 
     return 1;
 }
