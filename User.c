@@ -14,7 +14,6 @@ char* asip;
 char* asport; 
 char* fsip; 
 char* fsport;
-char* userSession;
 
 char UID[UID_LENGTH];
 char pass[PASS_LENGTH];
@@ -61,27 +60,27 @@ void userRequestCommand(char Fop, char Fname){
 
 void userValidatesVC(char VC){
     sendMessageTCP(userASsession, VC, VALIDATION_CODE_LENGTH);
-    printf("The two-factor authentication was succesfull");
+    printf("The two-factor authentication was succesfull.");
     receiveMessageTCP(userASsession, TID, TID_LENGTH);
 }
 
 void userRetrieveCommand(char filename){
-    Sock *userFSsessionR = newTCPClient(userSession, fsport);
+    Sock *userFSsessionR = newTCPClient(asip, fsport);
     //Fuck this shit
 }
 
 void userUploadCommand(char filename){
-    Sock *userFSsessionU = newTCPClient(userSession, fsport);
+    Sock *userFSsessionU = newTCPClient(asip, fsport);
     //Fuck this shit
 }
 
 void userDeleteCommand(char filename){
-    Sock *userFSsessionL = newTCPClient(userSession, fsport);
+    Sock *userFSsessionL = newTCPClient(asip, fsport);
     //Fuck this shit
 }
 
 void userListCommand(){
-    Sock *userFSsessionL = newTCPClient(userSession, fsport);
+    Sock *userFSsessionL = newTCPClient(asip, fsport);
     //Fuck this shit
 
 }
@@ -98,9 +97,9 @@ void userExitCommand(){
 
 
 void userProcess() {
-
+    char arg1, arg2, arg3;
     //user establishes a TCP session with the AS
-    Sock *userASsession = newTCPClient(userSession, asport);
+    Sock *userASsession = newTCPClient(asip, asport);
     while(TRUE){
         if (sscanf("%s %s %s", arg1, arg2, arg3)){
             if (arg1==loginCommand){
@@ -186,6 +185,7 @@ int main(int argc, char *argv[]) {
 
     if (asip==NULL){
         //the AS is running on the same machine
+        //FIX ME
         
     }
 
@@ -203,6 +203,7 @@ int main(int argc, char *argv[]) {
 
     if (fsip==NULL){
         //The FS is running on the same machine
+        //FIX ME
 
     }
 
