@@ -16,14 +16,14 @@ char* fsip;
 char* fsport;
 char* userSession;
 
-char UID[UID_LENGTH];
-char pass[PASS_LENGTH];
+char UID[UID_LENGTH+1];
+char pass[PASS_LENGTH+1];
 char validationMessage;
-char TID[TID_LENGTH];
-char Fop[1];
-char Fname;
-char VC[VALIDATION_CODE_LENGTH];
-char filename;
+char TID[TID_LENGTH+1];
+char Fop[2];
+char Fname[FNAME_LENGTH+1];
+char VC[VALIDATION_CODE_LENGTH+1];
+char filename[FNAME_LENGTH+1];
 
 //Commands
 char loginCommand[] = "login";
@@ -98,15 +98,18 @@ void userExitCommand(){
 
 
 void userProcess() {
-
+    char arg1[10], arg2[FNAME_LENGTH+1], arg3[FNAME_LENGTH+1];
+    char buffer[SIZE];
     //user establishes a TCP session with the AS
-    Sock *userASsession = newTCPClient(userSession, asport);
+    Sock *userASsession = newTCPClient(asip, asport);
     while(TRUE){
-        if (sscanf("%s %s %s", arg1, arg2, arg3)){
-            if (arg1==loginCommand){
-                arg2= UID;
-                arg3= pass;
-                userLoginCommand(UID, pass);
+        fgets(buffer, SIZE, stdin);
+        if (sscanf(buffer, "%s %s %s", arg1, arg2, arg3) == 3){
+            if (strcmp(arg1, loginCommand) == 0){
+                //arg2= UID;
+                //arg3= pass;
+                // UID = arg2; mas isto nao funciona em C -> strcpy(UID, arg2);
+                userLoginCommand(arg2, arg3);
             }
             else if(arg1==requestCommand){
                 arg2= Fop;
