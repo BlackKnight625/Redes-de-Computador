@@ -1,6 +1,7 @@
 //AS
 
 #include "libs/helper.h"
+#include <pthread.h>
 
 #define SIZE 128
 #define max(A, B) ((A) >= (B) ? (A) : (B))
@@ -8,9 +9,9 @@
 char *asport;
 int verboseMode = FALSE;
 
-void getUDPrequests(Sock *sfd) {
+void getUDPrequests(Sock *sfd, Map *users) {
     char buffer[SIZE];
-    char op[SIZE], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
+    char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char pdip[SIZE], pdport[SIZE];
 
     memset(buffer, 0, SIZE);
@@ -21,28 +22,68 @@ void getUDPrequests(Sock *sfd) {
 
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
-    /*if (words == 5 && && strcmp(op, "REG") == 0) {
-        if (strcmp(user->uid, uid) == 0) {
-            sprintf(buffer, "RVC OK\n");
-            sendMessage(sfd, buffer, strlen(buffer));
+    if (words == 5 && strcmp(op, "REG") == 0) {
+        // checks if user id and password are valid
+        if (validUID(uid) && validPASS(pw)) {
+            sprintf(buffer, "RRG OK\n");
+            put(users, uid, pw);
         } else {
-            sprintf(buffer, "RVC NOK\n");
-            sendMessage(sfd, buffer, strlen(buffer));
+            sprintf(buffer, "RRG NOK\n");
+        }
+    } else if (words == 3 && strcmp(op, "UNR") == 0) {
+        // checks if user exists and password is correct
+        char *pass;
+        if ((pass = get(users, uid)) && strcmp(pass, pw) == 0) {
+            sprintf(buffer, "RUN OK\n");
+            removeElement(users, uid);
+        } else {
+            sprintf(buffer, "RUN NOK\n");
+        }
+    } else if (words == 3 && strcmp(op, "VLD") == 0) {
+        if () {
+
         }
     } else {
+        // command not recognized
         sprintf(buffer, "ERR\n");
-        sendMessage(sfd, buffer, strlen(buffer));
-    }*/
+    }
+    sendMessage(sfd, buffer, strlen(buffer));
 }
 
-void getTCPrequests() {
+void *getUserRequests(void *arg) {
+    char buffer[SIZE];
+    char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], rid[RID_LENGTH+1];
+    char vc[VALIDATION_CODE_LENGTH+1], fname[FNAME_LENGTH+1];
 
+    // establishes a TCP connection and handles requests
+    Sock *sfd = (Sock*) arg;
+    while (TRUE) {
+        memset(buffer, 0, SIZE);
+        receiveMessage(sfd, buffer, SIZE);
+        sscanf(buffer, "%s %s %s %s %s", op, uid, rid, vc, fname);
+
+        memset(buffer, 0, SIZE);
+        if (strcmp(op, "VLC") == 0) {
+            sprintf(buffer, "RVC UID status\n");
+        } else if (words >= 4 && words <= 5 && strcmp(op, "AUT") == 0) {
+            ;
+        }
+        sendMessage(sfd, buffer, strlen(buffer));
+    }
+}
+
+void acceptConnections(Sock *sfd) {
+    Sock *newSock = acquire(sfd);
+    pthread_t newThread;
+    pthread_create(&newThread, 0, getUserRequests, newSock);
 }
 
 void processCommands() {
     int counter, maxfd;
     fd_set readfds;
     struct timeval timeout;
+
+    Map *users = newMap();
 
     Sock *sfdUDP = newUDPServer(asport);
     Sock *sfdTCP = newTCPServer(asport);
@@ -65,11 +106,11 @@ void processCommands() {
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            getUDPrequests(sfdUDP);
+            getUDPrequests(sfdUDP, users);
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
-            getTCPrequests();
+            acceptConnections(sfdTCP);
         }
 
         // insert other FD_ISSET conditions here
@@ -79,18 +120,13 @@ void processCommands() {
 int main(int argc, char *argv[]) {
     Map *myMap = newMap();
 
-    if (argc <= 1) {
-        fprintf(stderr, "not enough arguments\n");
-    } else {
-        for (int i = 1; i < argc; i++) {
-            if (strcmp(argv[i], "-v") == 0) {
-                verboseMode = TRUE;
-                continue;
-            }
-
-            put(myMap, argv[i], argv[i+1]);
-            i++;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0) {
+            verboseMode = TRUE;
+            continue;
         }
+        put(myMap, argv[i], argv[i+1]);
+        i++;
     }
 
     if ((asport = get(myMap, "-p")) == NULL) { asport = AS_PORT; }
