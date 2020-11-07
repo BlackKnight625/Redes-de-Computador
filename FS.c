@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <ftw.h>
 
 #include "libs/helper.h"
 #include "libs/data.h"
@@ -48,6 +49,7 @@ char deleteReply[] = "RDL";
 char removeCommand[] = "REM";
 char removeReply[] = "RRM";
 
+char okReply[] = "OK";
 char errorReply[] = "ERR";
 char errorNotOKReply[] = "NOK";
 char errorInvalidTIDReply[] = "INV";
@@ -97,9 +99,11 @@ char* getReplyForCommand(char command[]) {
  * contain arbitrairy data, then its size must be specified in replySize
  */
 void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) {
-    char actualReply[512];
+    char* actualReply;
     int i = 0, j = 0;
     int replyLength = replySize == -1 ? strlen(reply) : replySize;
+
+    actualReply = (char*) malloc(sizeof(char) * (COMMAND_LENGTH + 10 + replyLength)); //Allocating enough space for the entire reply
 
     //Copying the reply command to the actual reply
     for(; i < COMMAND_LENGTH; i++) {
@@ -120,11 +124,12 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
 
     //sendMessage(replySocket, actualReply, i + 1);
 
+    printf("Replying: ");
     for(j = 0; j <= i; j++) {
         printf("%c", actualReply[j]);
     }
 
-    printf("Replying: %s", actualReply);
+    free(actualReply);
 }
 
 /**
@@ -255,6 +260,7 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
         else if(args[i] == '\0') {
             //Args were parsed wrongly. Args should end with a \n
             reply(retrieveReply, errorReply, replySocket, -1);
+            return;
         }
         else {
             fileName[i] = args[i];
@@ -267,9 +273,16 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
 
     FILE* file = fopen(filePath, "rb");
 
-    if(errno == ENOENT) {
-        //File does not exist
-        reply(retrieveReply, errorEOFReply, replySocket, -1);
+    if(file == NULL) {
+        if(errno == ENOENT) {
+            //File does not exist
+            reply(retrieveReply, errorEOFReply, replySocket, -1);
+            return;
+        }
+        else {
+            reply(retrieveReply, errorReply, replySocket, -1);
+            return;
+        }
     }
 
     stat(filePath, &fileStats);
@@ -328,11 +341,15 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     if(sscanf(args, "%s %d", fileName, &fileSize) != 2) {
         //Something went wrong
         reply(uploadReply, errorReply, replySocket, -1);
+        return;
     }
 
     //Making args point to the beggining of the data
-    pointToArgs(&args);
-    pointToArgs(&args);
+    if(!pointToArgs(&args) || !pointToArgs(&args)) {
+        //Not enough args
+        reply(uploadReply, errorReply, replySocket, -1);
+        return;
+    }
 
     //Getting the file path
     sprintf(filePath, "%s/%s/%s", pathname, UID, fileName);
@@ -369,19 +386,93 @@ void upload(char* args, Sock* replySocket, char UID[]) {
         return;
     }
 
-    file = fopen(filePath, "r");
+    file = fopen(filePath, "w");
 
     fwrite(args, sizeof(char), fileSize, file);
 
     fclose(file);
+
+    reply(uploadReply, okReply, replySocket, -1);
 }
 
-void deleteC(char* args, Sock* replySocket) {
+void deleteC(char* args, Sock* replySocket, char UID[]) {
+    char fileName[FNAME_LENGTH + 1];
+    char filePath[SIZE];
+    int fileNameSize;
 
+    strcpy(fileName, args);
+
+    fileNameSize = strlen(fileName);
+
+    if(fileName[fileNameSize - 1] != '\n') {
+        //The args do not end with a '\n'
+        reply(deleteReply, errorReply, replySocket, -1);
+    }
+
+    fileName[fileNameSize - 1] = '\0'; //Replacing the \n with \0
+
+    if(!dirExists(UID)) {
+        reply(deleteReply, errorNotOKReply, replySocket, -1);
+        return;
+    }
+
+    sprintf(filePath, "%s/%s/%s", pathname, UID, fileName);
+
+    //Opening the file to check if it exists
+    FILE* file = fopen(filePath, "rb");
+
+    if(file == NULL) {
+        if(errno == ENOENT) {
+            //File does not exist
+            reply(deleteReply, errorEOFReply, replySocket, -1);
+            return;
+        }
+        else {
+            reply(deleteReply, errorReply, replySocket, -1);
+            return;
+        }
+    }
+
+    fclose(file);
+
+    remove(filePath);
+
+    reply(deleteReply, okReply, replySocket, -1);
 }
 
-void removeC(char* args, Sock* replySocket) {
+void removeC(char* args, Sock* replySocket, char UID[]) {
+    DIR *directory;
+    struct dirent *dir;
+    char filePath[REPLY_SIZE];
+    char directoryPath[SIZE];
 
+    sprintf(directoryPath, "%s/%s", pathname, UID);
+
+    directory = opendir(directoryPath);
+
+    //Iterating over all files to remove them
+    if(directory != NULL) {
+        while((dir = readdir(directory)) != NULL) {
+            //Getting the file path
+            sprintf(filePath, "%s/%s", directoryPath, dir->d_name);
+            
+            if(strcmp(dir->d_name, "..") == 0 || strcmp(dir->d_name, ".") == 0) {
+                continue;
+            }
+
+            remove(filePath);
+        }
+
+        closedir(directory);
+
+        rmdir(directoryPath);
+    }
+    else {
+        reply(removeReply, errorNotOKReply, replySocket, -1);
+        return;
+    }
+
+    reply(removeReply, okReply, replySocket, -1);
 }
 
 //--------Dealing with commands-------
@@ -428,10 +519,10 @@ void *newClientDealingThread(void* arg) {
                     upload(args, tcpUserSocket, UID);
                 }
                 else if(isCommand(deleteCommand, buffer)) {
-                    deleteC(args, tcpUserSocket);
+                    deleteC(args, tcpUserSocket, UID);
                 }
                 else if(isCommand(removeCommand, buffer)) {
-                    removeC(args, tcpUserSocket);
+                    removeC(args, tcpUserSocket, UID);
                 }
                 else if(isCommand(closeConnectionCommand, buffer)) {
                     //Closing connection
@@ -526,10 +617,12 @@ int main(int argc, char *argv[]) {
     //Creating socket that listens for new connections
     clientConnectionsSocket = newTCPServer(fsport);
 
-
+    //Tests
     list("", NULL, "1");
-    upload("Fich_Test3 8 abcdefgh\n", NULL, "1");
+    upload("Fich_Test3 10 abc\0de\tfgh\n", NULL, "1");
     retrieve("Fich_Test3\n", NULL, "1");
+    deleteC("Fich_Test3\n", NULL, "1");
+    removeC("", NULL, "1");
 
     //Listening for connections
     /*while(TRUE) {
