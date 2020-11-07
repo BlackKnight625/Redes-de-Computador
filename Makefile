@@ -4,16 +4,16 @@ all: libs/helper.o libs/udp.o libs/tcp.o pd.o fs.o as.o user.o
 	gcc -g -pthread -o as libs/helper.o libs/udp.o libs/tcp.o as.o
 	#gcc -g -o user libs/helper.o libs/udp.o libs/tcp.o user.o
 
-user.o: User.c libs/helper.h libs/udp.h libs/tcp.h
+user.o: User.c libs/helper.o libs/udp.o libs/tcp.o
 	gcc -g -o user.o -c User.c
 
-as.o: AS.c libs/helper.h libs/udp.h libs/tcp.h
+as.o: AS.c libs/helper.o libs/udp.o libs/tcp.o
 	gcc -g -o as.o -c AS.c
 
-fs.o: FS.c libs/helper.h libs/udp.h libs/tcp.h
+fs.o: FS.c libs/helper.o libs/udp.o libs/tcp.o
 	gcc -g -o fs.o -c FS.c
 
-pd.o: PD.c libs/helper.h libs/udp.h libs/tcp.h
+pd.o: PD.c libs/helper.o libs/udp.o libs/tcp.o
 	gcc -g -o pd.o -c PD.c
 
 libs/tcp.o: libs/tcp.c libs/tcp.h libs/data.h
