@@ -25,6 +25,9 @@ char Fname[FNAME_LENGTH+1];
 char VC[VALIDATION_CODE_LENGTH+1];
 char filename[FNAME_LENGTH+1];
 char requestID[RID_LENGTH+1]= "0000";
+char status[5];
+int Fsize=0;
+char data[128]; //tamanho???
 
 
 //Commands
@@ -59,7 +62,7 @@ int getRandomNumber (int upper, int lower){
 }
 
 
-//converts an integer to a char
+//Converts an integer to a char
 void integerToChar(int n, char string[]) {
     int i = RID_LENGTH -1;
     for (; i >= 0 && n != 0; n = n/10) {
@@ -84,7 +87,7 @@ void userLoginCommand(){
     buffer[n]="\0";
 
     if(strcmp(buffer, "RLO OK")==0){
-        printf("You are now logged in.");
+        printf("You are now logged in.\n");
     }
     else{
         UID[0]="\0";
@@ -96,9 +99,8 @@ void userLoginCommand(){
 }
 
 
-void userRequestCommand(char Fop, char Fname){
+void userRequestCommand(){
     char buffer[SIZE];
-    char requestID[RID_LENGTH+1]= "0000";
     int randomID=0;
     randomID = getRandomNumber(0, 9999);
     integerToChar(randomID, requestID);
@@ -125,7 +127,7 @@ void userRequestCommand(char Fop, char Fname){
 }
 
 
-void userValidatesVC(char VC){
+void userValidatesVC(){
     char buffer[SIZE];
     char arg[4];
 
@@ -147,56 +149,147 @@ void userValidatesVC(char VC){
 }
 
 
-void userRetrieveCommand(char Fname){
-    Sock *userFSsessionR = newTCPClient(asip, fsport);
-    //Fuck this shit
-}
-
-
-void userUploadCommand(char Fname){
-    Sock *userFSsessionU = newTCPClient(asip, fsport);
-    //Fuck this shit
-}
-
-
-void userDeleteCommand(char Fname){
-    Sock *userFSsessionL = newTCPClient(asip, fsport);
-    //Fuck this shit
-}
-
-
-void userListCommand(){
+//***************************FIX ME***************************
+void userRetrieveCommand(){
     char buffer[SIZE];
 
     //user establishes a TCP session with the FS
-    Sock *userFSsessionL = newTCPClient(fsip, fsport);
+    Sock *userFSsession = newTCPClient(fsip, fsport);
+
+    //RTV UID TID Fname
+    sprintf(buffer, "RTV %s %s %s\n", UID, TID, Fname);
+    sendMessage(userFSsession, buffer, strlen(buffer));
+
+    //RRT status [Fsize data]
+    int n= receiveMessage(userFSsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    sscanf(buffer, "RRT %s %d  %s\n", status, Fsize, data);
+
+    //FIX ME: Como fazer print com path, tamanho do data
+
+    //closes the TCP session
+    closeSocket(userFSsession);
+}
+
+
+//***************************FIX ME***************************
+void userUploadCommand(){
+    char buffer[SIZE];
+
+    //user establishes a TCP session with the FS
+    Sock *userFSsession = newTCPClient(fsip, fsport);
+
+    //UPL UID TID Fname Fsize data
+    sprintf(buffer, "UPL %s %s %s %d %s\n", UID, TID, Fname, Fsize, data);
+    sendMessage(userFSsession, buffer, strlen(buffer));
+
+    //RUP status
+    int n= receiveMessage(userFSsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    sscanf(buffer, "RUP %s\n", status);
+    if(strcmp(status, "OK")==0){
+        printf("Success uploading %s\n", Fname);
+    }
+    else if(strcmp(status, "DUP")==0){
+        printf("The file %s already exists\n", Fname);
+    }
+    else if(strcmp(status, "FULL")==0){
+        printf("The User has already uploaded 15 files, there's no room for another file\n");
+    }
+    else if(strcmp(status, "INV")==0){
+        printf("There was an error with the AS validation\n");
+    }
+    //FIX ME: status NOK??
+
+    //closes the TCP session
+    closeSocket(userFSsession);
+}
+
+
+void userDeleteCommand(){
+    char buffer[SIZE];
+
+    //user establishes a TCP session with the FS
+    Sock *userFSsession = newTCPClient(fsip, fsport);
+
+    //DEL UID TID Fname
+    sprintf(buffer, "DEL %s %s %s\n", UID, TID, Fname);
+    sendMessage(userFSsession, buffer, strlen(buffer));
+
+    //RDL status
+    int n= receiveMessage(userFSsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    sscanf(buffer, "RDL %s\n", status);
+
+    if( strcmp(status, "OK")==0 ){
+        printf( "The file %s was succesfully deleted\n", Fname);
+    }
+    if( strcmp(status, "NOK")==0 ){
+        printf( "There was an error when deleting the file %s \n", Fname);
+    }
+
+    //closes the TCP session
+    closeSocket(userFSsession);
+}
+
+
+//***************************FIX ME***************************
+void userListCommand(){
+    char buffer[SIZE];
+    int Fsize=0;
+
+    //user establishes a TCP session with the FS
+    Sock *userFSsession = newTCPClient(fsip, fsport);
 
     //LST UID TID
     sprintf(buffer, "LST %s %s\n", UID, TID);
     sendMessage(userFSsession, buffer, strlen(buffer));
 
-
-
-
-
-    //RAU TID
-    int n= receiveMessage(userASsession, buffer, SIZE);
+    //RLS N [Fname Fsize]*
+    int n= receiveMessage(userFSsession, buffer, SIZE);
     buffer[n]="\0";
 
+    //FIX ME: formato e leitura de [Fname Fsize]*
     sscanf(buffer, "%s %s\n", arg, TID);
     
     //closes the TCP session
-    closeSocket(userASsession);
+    closeSocket(userFSsession);
 }
 
 
 void userRemoveCommand(){
-    //Fuck this shit
+    char buffer[SIZE];
+
+    //user establishes a TCP session with the FS
+    Sock *userFSsession = newTCPClient(fsip, fsport);
+
+    //REM UID TID
+    sprintf(buffer, "REM %s %s\n", UID, TID);
+    sendMessage(userFSsession, buffer, strlen(buffer));
+
+    //RRM status
+    int n= receiveMessage(userFSsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    sscanf(buffer, "RRM %s\n", status);
+
+    if( strcmp(status, "OK")==0 ){
+        printf( "The file %s was succesfully removed\n", Fname);
+    }
+    if( strcmp(status, "NOK")==0 ){
+        printf( "There was an error when removing the file %s \n", Fname);
+    }
+
+    //closes the TCP session
+    closeSocket(userFSsession);
 }
 
 
+//***************************FIX ME***************************
 void userExitCommand(){
-    //close all TCP connections
     exit();
 }
 
@@ -218,7 +311,7 @@ void userProcess() {
             else if(strcmp(arg1, requestCommand) == 0){
                 strcpy(Fop, arg2);
                 strcpy(Fname, arg3);
-                userRequestCommand(Fop, Fname);
+                userRequestCommand();
             }
         }
 
@@ -226,19 +319,19 @@ void userProcess() {
         else if (sscanf(buffer, "%s %s", arg1, arg2) == 2){
             if (strcmp(arg1, verificationCommand) == 0){
                 strcpy(VC, arg2);
-                userValidatesVC(VC);
+                userValidatesVC();
             }
             else if ( (strcmp(arg1, retrieveCommand == 0) || (strcmp(arg1, rCommand) == 0) ){
                 strcpy(Fname, arg2);
-                userRetrieveCommand(Fname);
+                userRetrieveCommand();
             }
             else if ( (strcmp(arg1, uploadCommand) ==0) || (strcmp(arg1, uCommand) ==0) ){
                 strcpy(Fname, arg2);
-                userUploadCommand(Fname);
+                userUploadCommand();
             }
             else if ( (strcmp(arg1, deleteCommand)==0) || (strcmp(arg1, dCommand)== 0) ){
                 strcpy(Fname, arg2);
-                userDeleteCommand(Fname);
+                userDeleteCommand();
             }
         }
 
@@ -255,11 +348,6 @@ void userProcess() {
             }
         }
     }
-    
-
-    
-
-
 }
 
 
@@ -276,8 +364,8 @@ if omitted means the FS is running on the same machine
 If omitted, it assumes the value 59000+GN, where GN is the group number.
 */
 
+//***************************FIX ME***************************
 int main(int argc, char *argv[]) {
-
 
     // parse arguments
     if (argc <= 1 || argc % 2 != 0) {
@@ -298,7 +386,6 @@ int main(int argc, char *argv[]) {
     if (asip==NULL){
         //the AS is running on the same machine
         //FIX ME
-        
     }
 
     if (asport==NULL){
@@ -316,13 +403,13 @@ int main(int argc, char *argv[]) {
     if (fsip==NULL){
         //The FS is running on the same machine
         //FIX ME
-
     }
 
     if (fsport==NULL){
         //Setting default FSport
         fsport = FS_PORT;
     }
+    
     else {
         if( atoi(fsport) ==0 ){
             //The given IP is not a number
@@ -330,6 +417,5 @@ int main(int argc, char *argv[]) {
             return 0;
         }
     }
-
     userProcess();
 }
