@@ -26,7 +26,7 @@ char filename[FNAME_LENGTH+1];
 char requestID[RID_LENGTH+1]= "0000";
 char status[5];
 int Fsize=0;
-char data[128]; //tamanho???
+char *data;
 
 
 //Commands
@@ -166,6 +166,7 @@ void userRetrieveCommand(){
     sscanf(buffer, "RRT %s %d  %s\n", status, Fsize, data);
 
     //FIX ME: Como fazer print com path, tamanho do data
+    data= (char*) malloc(sizeof (char) * (Fsize));
 
     //closes the TCP session
     closeSocket(userFSsession);
