@@ -1,6 +1,7 @@
 //User
 
 #include "libs/helper.h"
+#include <time.h>
 
 #define SIZE 128
 #define max(A, B) ((A) >= (B) ? (A) : (B))
@@ -9,7 +10,7 @@
 //Global variables
 
 Map *myMap = newMap();
-char buffer[SIZE];
+char buffer[SIZE]; //do I need this here????????????????
 char* asip;
 char* asport; 
 char* fsip; 
@@ -23,8 +24,11 @@ char Fop[2];
 char Fname[FNAME_LENGTH+1];
 char VC[VALIDATION_CODE_LENGTH+1];
 char filename[FNAME_LENGTH+1];
+char requestID[RID_LENGTH+1]= "0000";
+
 
 //Commands
+
 char loginCommand[] = "login";
 char requestCommand[] = "req";
 char verificationCommand[] = "val";
@@ -46,102 +50,207 @@ char xCommand[] = "x";
 char exitCommand[] = "exit";
 
 
-void userLoginCommand(char UID, char pass){
-    sendMessageTCP(userASsession, UID, UID_LENGTH);
-    sendMessageTCP(userASsession, pass, PASS_LENGTH);
-    printf("The AS validated your request. You're logged in.");
+//Generates a random number between the upper and the lower number
+int getRandomNumber (int upper, int lower){
+    time_t t;
+    srand((unsigned) time(&t));
+    int num = (rand() % (upper - lower + 1)) + lower;
+    return num;
+}
+
+
+//converts an integer to a char
+void integerToChar(int n, char string[]) {
+    int i = RID_LENGTH -1;
+    for (; i >= 0 && n != 0; n = n/10) {
+        string[i] = (n%10) + '0';
+        i--;
+    }
+}
+
+
+void userLoginCommand(){
+    char buffer[SIZE];
+
+    //user establishes a TCP session with the AS
+    Sock *userASsession = newTCPClient(asip, asport);
+
+    //LOG UID pass
+    sprintf(buffer, "LOG %s %s\n", UID, pass);
+    sendMessage(userASsession, buffer, strlen(buffer));
+
+    //RLO status
+    int n= receiveMessage(userASsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    if(strcmp(buffer, "RLO OK")==0){
+        printf("You are now logged in.");
+    }
+    else{
+        UID[0]="\0";
+        pass[0]="\0";
+    }
+    
+    //closes the TCP session
+    closeSocket(userASsession);
 }
 
 
 void userRequestCommand(char Fop, char Fname){
-    //Fuck this shit
+    char buffer[SIZE];
+    char requestID[RID_LENGTH+1]= "0000";
+    int randomID=0;
+    randomID = getRandomNumber(0, 9999);
+    integerToChar(randomID, requestID);
 
+    //user establishes a TCP session with the AS
+    Sock *userASsession = newTCPClient(asip, asport);
+
+    //REQ UID RID Fop [Fname]
+    if ( (strcmp(Fop, "R") ==0) || (strcmp(Fop, "U") ==0) || (strcmp(Fop, "D") ==0) ){
+        sprintf(buffer, "REQ %s %s %s %s\n", UID, requestID, Fop, Fname); 
+        sendMessage(userASsession, buffer, strlen(buffer));
+    }
+    else{
+        sprintf(buffer, "REQ %s %s %s\n", UID, requestID, Fop);
+        sendMessage(userASsession, buffer, strlen(buffer));
+    }
+    
+    //RRQ status
+    int n= receiveMessage(userASsession, buffer, SIZE);
+    buffer[n]="\0"; 
+
+    //closes the TCP session
+    closeSocket(userASsession);
 }
+
 
 void userValidatesVC(char VC){
-    sendMessageTCP(userASsession, VC, VALIDATION_CODE_LENGTH);
-    printf("The two-factor authentication was succesfull.");
-    receiveMessageTCP(userASsession, TID, TID_LENGTH);
+    char buffer[SIZE];
+    char arg[4];
+
+    //user establishes a TCP session with the AS
+    Sock *userASsession = newTCPClient(asip, asport);
+
+    //AUT UID RID VC
+    sprintf(buffer, "AUT %s %s %s\n", UID, requestID, VC);
+    sendMessage(userASsession, buffer, strlen(buffer));
+
+    //RAU TID
+    int n= receiveMessage(userASsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    sscanf(buffer, "%s %s\n", arg, TID);
+    
+    //closes the TCP session
+    closeSocket(userASsession);
 }
 
-void userRetrieveCommand(char filename){
+
+void userRetrieveCommand(char Fname){
     Sock *userFSsessionR = newTCPClient(asip, fsport);
     //Fuck this shit
 }
 
-void userUploadCommand(char filename){
+
+void userUploadCommand(char Fname){
     Sock *userFSsessionU = newTCPClient(asip, fsport);
     //Fuck this shit
 }
 
-void userDeleteCommand(char filename){
+
+void userDeleteCommand(char Fname){
     Sock *userFSsessionL = newTCPClient(asip, fsport);
     //Fuck this shit
 }
+
 
 void userListCommand(){
-    Sock *userFSsessionL = newTCPClient(asip, fsport);
-    //Fuck this shit
+    char buffer[SIZE];
 
+    //user establishes a TCP session with the FS
+    Sock *userFSsessionL = newTCPClient(fsip, fsport);
+
+    //LST UID TID
+    sprintf(buffer, "LST %s %s\n", UID, TID);
+    sendMessage(userFSsession, buffer, strlen(buffer));
+
+
+
+
+
+    //RAU TID
+    int n= receiveMessage(userASsession, buffer, SIZE);
+    buffer[n]="\0";
+
+    sscanf(buffer, "%s %s\n", arg, TID);
+    
+    //closes the TCP session
+    closeSocket(userASsession);
 }
+
 
 void userRemoveCommand(){
-
+    //Fuck this shit
 }
+
 
 void userExitCommand(){
     //close all TCP connections
     exit();
-
 }
 
 
 void userProcess() {
     char arg1[10], arg2[FNAME_LENGTH+1], arg3[FNAME_LENGTH+1];
     char buffer[SIZE];
-    //user establishes a TCP session with the AS
-    Sock *userASsession = newTCPClient(asip, asport);
+    
     while(TRUE){
         fgets(buffer, SIZE, stdin);
+
+        //sscanf receives 3 args
         if (sscanf(buffer, "%s %s %s", arg1, arg2, arg3) == 3){
             if (strcmp(arg1, loginCommand) == 0){
-                //arg2= UID;
-                //arg3= pass;
-                // UID = arg2; mas isto nao funciona em C -> strcpy(UID, arg2);
-                userLoginCommand(arg2, arg3);
+                strcpy(UID, arg2);
+                strcpy(pass, arg3);
+                userLoginCommand();
             }
-            else if(arg1==requestCommand){
-                arg2= Fop;
-                arg3= Fname;
+            else if(strcmp(arg1, requestCommand) == 0){
+                strcpy(Fop, arg2);
+                strcpy(Fname, arg3);
                 userRequestCommand(Fop, Fname);
             }
         }
-        else if (sscanf("%s %s", arg1, arg2)){
-            if (arg1== verificationCommand){
-                arg2=VC;
+
+        //sscanf receives 2 args
+        else if (sscanf(buffer, "%s %s", arg1, arg2) == 2){
+            if (strcmp(arg1, verificationCommand) == 0){
+                strcpy(VC, arg2);
                 userValidatesVC(VC);
             }
-            else if (arg1==retrieveCommand || arg1==rCommand){
-                arg2= filename;
-                userRetrieveCommand(filename);
+            else if ( (strcmp(arg1, retrieveCommand == 0) || (strcmp(arg1, rCommand) == 0) ){
+                strcpy(Fname, arg2);
+                userRetrieveCommand(Fname);
             }
-            else if (arg1==uploadCommand || arg1==uCommand){
-                arg2= filename;
-                userUploadCommand(filename);
+            else if ( (strcmp(arg1, uploadCommand) ==0) || (strcmp(arg1, uCommand) ==0) ){
+                strcpy(Fname, arg2);
+                userUploadCommand(Fname);
             }
-            else if (arg1==deleteCommand || arg1==dCommand){
-                arg2= filename;
-                userDeleteCommand(filename);
+            else if ( (strcmp(arg1, deleteCommand)==0) || (strcmp(arg1, dCommand)== 0) ){
+                strcpy(Fname, arg2);
+                userDeleteCommand(Fname);
             }
         }
-        else if (sscanf("%s", arg1)){
-            if(arg1== listCommand || arg1== lCommand){
+
+    //sscanf receives 1 arg
+        else if (sscanf(buffer, "%s", arg1) == 1){
+            if( (strcmp(arg1, listCommand) ==0)  || (strcmp( arg1, lCommand) ==0) ){
                 userListCommand();
             }
-            else if(arg1== removeCommand || arg1==rCommand){
+            else if( (strcmp(arg1, removeCommand) ==0) || (strcmp(arg1, rCommand) ==0) ){
                 userRemoveCommand();
             }
-            else if(arg1==exitCommand){
+            else if( (strcmp(arg1, exitCommand) ==0) ){
                 userExitCommand();
             }
         }
