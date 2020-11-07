@@ -33,6 +33,12 @@ UsersList *newUsersList() {
 }
 
 void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
+    User *user = getUser(users, uid);
+    // user is already in the regist
+    if (user != NULL) {
+        return; 
+    }
+
     User *newUser = (User*)malloc(sizeof*(User));
     newUser->next = NULL;
     strcpy(newUser->uid, uid);
@@ -43,7 +49,7 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
     newUser->rids = newMap();
     newUser->r2t = newMap();
 
-    User *user = users->users;
+    user = users->users;
     if (users->size == 0) {
         users->users = newUser;
     } else {
@@ -159,7 +165,12 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     Sock *sfd = newUDPClient(user->pdip, user->pdport);
 
     memset(buffer, 0, SIZE);
-    sprintf(buffer, "VLC %s %s %s %s", user->uid, newVC, fop, fname);
+    if (fname == NULL) {
+        sprintf(buffer, "VLC %s %s %s", user->uid, newVC, fop);
+    } else {
+        sprintf(buffer, "VLC %s %s %s %s", user->uid, newVC, fop, fname);
+    }
+
     sendMessage(sfd, buffer, strlen(buffer));
 
     int n = receiveMessage(sfd, buffer, SIZE);
@@ -178,73 +189,110 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
         put(user->r2t, rid, newTID);
         incrNumber(newTID);
+        
+        if (strcmp(newTID, "0000") == 0) {
+            incrNumber(newTID);
+        }
+
         return TRUE; // successfuly validated request
     } else {
         return FALSE;
     }  
 }
 
-void *getUserRequests(void *arg, UsersList *users) {
+void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char vc[VALIDATION_CODE_LENGTH+1], fname[FNAME_LENGTH+1];
 
     // establishes a TCP connection and handles requests
-    Sock *sfd = (Sock*) arg;
-    while (TRUE) {
-        memset(buffer, 0, SIZE);
-        receiveMessage(sfd, buffer, SIZE);
-        sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
+    Sock *sfd = acquire(sfdTCP);
 
-        int words = getWords(buffer);
-        memset(buffer, 0, SIZE);
-        if (words == 3 && strcmp(op, "LOG") == 0) {
-            User *user;
-            if ((user = getUser(users, uid)) != NULL && strcmp(user->pw, pw) == 0) {
-                sprintf(buffer, "RLO OK\n");
-            } else {
-                sprintf(buffer, "RLO NOK\n");
+    char *canonname = sfd->res->ai_canonname;
+    
+    memset(buffer, 0, SIZE);
+    receiveMessage(sfd, buffer, SIZE);
+    sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
+
+    User *user = getUser(users, uid);
+    char *userID = get(ips, canonname);
+
+    int words = getWords(buffer);
+    memset(buffer, 0, SIZE);
+    if (words == 3 && strcmp(op, "LOG") == 0) {
+        if (user  != NULL && strcmp(user->pw, pw) == 0) {
+            sprintf(buffer, "RLO OK\n");
+            // create a new canonname
+            if (userID == NULL) {
+                put(ips, canonname, uid);
             }
-        } else if (strcmp(op, "REQ") == 0) {
-            User *user = getUser(users, uid);
-            // array pw holds the RID
-            // array vc holds fop
-            if (user != NULL && words == 4 && (strcmp(vc, "L") == 0 || strcmp(vc, "X") == 0)) {
-                if (sendValidationCode(user, pw, vc, fname)) {
-                    sprintf(buffer, "RRQ OK\n");
-                } else { sprintf(buffer, "RRQ NOK\n"); }
-            } else if (user != NULL && words == 5 && (strcmp(vc, "R") == 0 || strcmp(vc, "U") == 0 || strcmp(vc, "D") == 0)) {
-                if (sendValidationCode(user, pw, vc, fname)) {
-                    sprintf(buffer, "RRQ OK\n");
-                } else { sprintf(buffer, "RRQ NOK\n"); }
-            } else {
-                sprintf(buffer, "RRQ NOK\n");
-            }
-        } else if (words == 4 && strcmp(op, "AUT") == 0) {
-            User *user = getUser(users, uid);
-            char *userVC;
-            char *tid;
-            // array pw holds the RID
-            if (user != NULL) {
-                userVC = get(user, pw);
-                if (strcmp(vc, userVC) == 0) {
-                    tid = get(user->r2t, pw);
-                    sprintf(buffer, "RAU %s\n", tid);
-                } else {
-                    sprintf(buffer, "RAU 0000\n");
+            // if canonname exists and User is changing account (uid) 
+            else if (strcmp(userID, uid) != 0){
+                int oldSize = strlen(userID);
+                int newSize = strlen(uid);
+                if (newSize > oldSize) {
+                    userID = realloc(userID, sizeof(char)*newSize);
+                    strcpy(userID, uid);
                 }
+            }
+        } else {
+            sprintf(buffer, "RLO NOK\n");
+        }
+    } else if (strcmp(op, "REQ") == 0) {
+        // array pw holds RID in REQ command
+        // array vc holds fop in REQ command
+        
+        // if User doesn't exist 
+        if (user == NULL) {
+            sprintf(buffer, "RRQ EUSER\n");
+        }
+        // if User is not logged in
+        else if (userID == NULL) {
+            sprintf(buffer, "RRQ ELOG\n");
+        }
+        // if User is logged in but sent a wrong UID
+        else if (strcmp(userID, uid) != 0) {
+            sprintf(buffer, "RRQ EUSER\n");
+        }
+        // if fop is L or X
+        else if (words == 4 && (strcmp(vc, "L") == 0 || strcmp(vc, "X") == 0)) {
+            if (sendValidationCode(user, pw, vc, NULL)) {
+                sprintf(buffer, "RRQ OK\n");
+            } else { sprintf(buffer, "RRQ EPD\n"); }
+        } 
+        // if fop is R or U or D
+        else if (words == 5 && (strcmp(vc, "R") == 0 || strcmp(vc, "U") == 0 || strcmp(vc, "D") == 0)) {
+            if (sendValidationCode(user, pw, vc, fname)) {
+                sprintf(buffer, "RRQ OK\n");
+            } else { sprintf(buffer, "RRQ EPD\n"); }
+        }
+        // if fop is invalid
+        else if (words == 4 || words == 5) {
+            sprintf(buffer, "RRQ EFOP\n");
+        }
+        // if message is incorrectly formatted
+        else {
+            sprintf(buffer, "RRQ ERR\n");
+        }
+    } else if (words == 4 && strcmp(op, "AUT") == 0) {
+        char *userVC;
+        char *tid;
+        // array pw holds the RID
+        if (user != NULL) {
+            userVC = get(user, pw);
+            if (strcmp(vc, userVC) == 0) {
+                tid = get(user->r2t, pw);
+                sprintf(buffer, "RAU %s\n", tid);
             } else {
                 sprintf(buffer, "RAU 0000\n");
             }
+        } else {
+            sprintf(buffer, "RAU 0000\n");
         }
-        sendMessage(sfd, buffer, strlen(buffer));
     }
-}
+    sendMessage(sfd, buffer, strlen(buffer));
 
-void acceptConnections(Sock *sfd) {
-    Sock *newSock = acquire(sfd);
-    pthread_t newThread;
-    pthread_create(&newThread, 0, getUserRequests, newSock);
+    closeSocket(sfd);
 }
 
 void processCommands() {
@@ -257,6 +305,8 @@ void processCommands() {
     initNumber(newTID);
     incrNumber(newTID); // TID 0000 means failed therefore number starts at 0001
     initNumber(newVC);
+
+    Map *ips = newMap();
 
     Sock *sfdUDP = newUDPServer(asport);
     Sock *sfdTCP = newTCPServer(asport);
@@ -283,7 +333,7 @@ void processCommands() {
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
-            acceptConnections(sfdTCP);
+            getUserRequests(sfdTCP, users, ips);
         }
 
         // insert other FD_ISSET conditions here
