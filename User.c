@@ -24,7 +24,7 @@ char Fname[FNAME_LENGTH+1];
 char VC[VALIDATION_CODE_LENGTH+1];
 char filename[FNAME_LENGTH+1];
 char requestID[RID_LENGTH+1]= "0000";
-char status[5];
+char status[6];
 int Fsize=0;
 char *data;
 
@@ -89,6 +89,7 @@ void userLoginCommand(){
         printf("You are now logged in.\n");
     }
     else{
+        printf("Login failed.\n");
         UID[0]="\0";
         pass[0]="\0";
     }
@@ -129,6 +130,7 @@ void userRequestCommand(){
 void userValidatesVC(){
     char buffer[SIZE];
     char arg[4];
+    int i=0;
 
     //user establishes a TCP session with the AS
     Sock *userASsession = newTCPClient(asip, asport);
@@ -142,15 +144,23 @@ void userValidatesVC(){
     buffer[n]="\0";
 
     sscanf(buffer, "%s %s\n", arg, TID);
+
+    i=atoi(TID);
+    if(i==0){
+        printf("Authentication failed.\n"),
+    }
+    else{
+        printf("Authenticated! (TID=%d)", I);
+    }
     
     //closes the TCP session
     closeSocket(userASsession);
 }
 
 
-//***************************FIX ME***************************
 void userRetrieveCommand(){
     char buffer[SIZE];
+    data = (char*) malloc(sizeof(char) * (Fsize));
 
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
@@ -165,15 +175,14 @@ void userRetrieveCommand(){
 
     sscanf(buffer, "RRT %s %d  %s\n", status, Fsize, data);
 
-    //FIX ME: Como fazer print com path, tamanho do data
-    data= (char*) malloc(sizeof (char) * (Fsize));
+    printf("%s (path: /%s/%s/%s \n", Fname, pathname, UID, Fname);
 
     //closes the TCP session
     closeSocket(userFSsession);
+    free(data);
 }
 
 
-//***************************FIX ME***************************
 void userUploadCommand(){
     char buffer[SIZE];
 
@@ -189,21 +198,15 @@ void userUploadCommand(){
     buffer[n]="\0";
 
     sscanf(buffer, "RUP %s\n", status);
+
     if(strcmp(status, "OK")==0){
         printf("Success uploading %s\n", Fname);
     }
-    else if(strcmp(status, "DUP")==0){
-        printf("The file %s already exists\n", Fname);
+    else{
+        printf("Unsuccesfull upload\n");
     }
-    else if(strcmp(status, "FULL")==0){
-        printf("The User has already uploaded 15 files, there's no room for another file\n");
-    }
-    else if(strcmp(status, "INV")==0){
-        printf("There was an error with the AS validation\n");
-    }
-    //FIX ME: status NOK??
 
-    //closes the TCP session
+    //Closes the TCP session
     closeSocket(userFSsession);
 }
 
@@ -322,9 +325,9 @@ void userRemoveCommand(){
 }
 
 
-//***************************FIX ME***************************
 void userExitCommand(){
-    exit();
+    delete(myMap);
+    exit(0);
 }
 
 
@@ -369,7 +372,7 @@ void userProcess() {
             }
         }
 
-    //sscanf receives 1 arg
+        //sscanf receives 1 arg
         else if (sscanf(buffer, "%s", arg1) == 1){
             if( (strcmp(arg1, listCommand) ==0)  || (strcmp( arg1, lCommand) ==0) ){
                 userListCommand();
@@ -398,7 +401,6 @@ if omitted means the FS is running on the same machine
 If omitted, it assumes the value 59000+GN, where GN is the group number.
 */
 
-//***************************FIX ME***************************
 int main(int argc, char *argv[]) {
 
     // parse arguments
@@ -419,7 +421,7 @@ int main(int argc, char *argv[]) {
 
     if (asip==NULL){
         //the AS is running on the same machine
-        //FIX ME
+        asip=LOCALHOST;
     }
 
     if (asport==NULL){
@@ -436,7 +438,7 @@ int main(int argc, char *argv[]) {
 
     if (fsip==NULL){
         //The FS is running on the same machine
-        //FIX ME
+        fsip=LOCALHOST;
     }
 
     if (fsport==NULL){

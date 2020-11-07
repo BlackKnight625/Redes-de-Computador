@@ -14,6 +14,7 @@
 #define AS_PORT "58042"
 #define FS_PORT "59042" 
 #define pathname "USERS"
+#define LOCALHOST "127.0.0.1"
 
 enum sockType { TCP, UDP };
 
