@@ -263,7 +263,7 @@ int isCommand(const char command[], const char* possibleCommand) {
 
 int pointToArgs(char** commandAndArgs) {
     //Making i point to the first space
-    for(; (*commandAndArgs)[0] != ' '; *commandAndArgs++) {
+    for(; (*commandAndArgs)[0] != ' '; (*commandAndArgs)++) {
         if((*commandAndArgs)[0] == '\0') {
             //Reached the end of the string, which means there are no args
             return 0;
