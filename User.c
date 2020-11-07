@@ -10,7 +10,6 @@
 //Global variables
 
 Map *myMap = newMap();
-char buffer[SIZE]; //do I need this here????????????????
 char* asip;
 char* asport; 
 char* fsip; 
@@ -236,11 +235,11 @@ void userDeleteCommand(){
 }
 
 
-//***************************FIX ME***************************
 void userListCommand(){
     char buffer[SIZE];
-    int Fsize=0;
-
+    int n=0;
+    int j=0;
+   
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
 
@@ -252,11 +251,45 @@ void userListCommand(){
     int n= receiveMessage(userFSsession, buffer, SIZE);
     buffer[n]="\0";
 
-    //FIX ME: formato e leitura de [Fname Fsize]*
-    sscanf(buffer, "%s %s\n", arg, TID);
+    sscanf(buffer, "RLS %d\n", &n);
+
+    int *sizes = (int*) malloc(sizeof (int) * n);
+    char **files = (char**)malloc(sizeof(char*)*n);
+
+    for (int i = 0; i < n; i++) {
+        files[i] = (char*)malloc(sizeof(char)*(25));
+    }
+
+    // Returns first token  
+    char *token = strtok(buffer, " "); 
+    
+    //Jumps the first two words (RLS N)
+    token = strtok(NULL, " "); 
+    token = strtok(NULL, " "); 
+
+    // Keep printing tokens while one of the delimiters present in buffer
+    while (token != NULL) 
+    { 
+        strcpy(files[j],token);
+        token = strtok(NULL, " "); 
+        sizes[j]=atoi(token);
+        token = strtok(NULL, " ");
+        j++;
+    }
+
+    for(j=0; j < n-1; j++){
+        printf("%d. %s %d\n", j, files[j], sizes[j]);
+    }
     
     //closes the TCP session
     closeSocket(userFSsession);
+
+    //Frees the files and sizes lists
+    for (int i = 0; i < n; i++) {
+        free(files[i]);
+    }
+    free(sizes);
+    free(files);
 }
 
 
