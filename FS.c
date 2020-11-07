@@ -48,6 +48,7 @@ char deleteReply[] = "RDL";
 char removeCommand[] = "REM";
 char removeReply[] = "RRM";
 
+char okReply[] = "OK";
 char errorReply[] = "ERR";
 char errorNotOKReply[] = "NOK";
 char errorInvalidTIDReply[] = "INV";
@@ -97,9 +98,11 @@ char* getReplyForCommand(char command[]) {
  * contain arbitrairy data, then its size must be specified in replySize
  */
 void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) {
-    char actualReply[512];
+    char* actualReply;
     int i = 0, j = 0;
     int replyLength = replySize == -1 ? strlen(reply) : replySize;
+
+    actualReply = (char*) malloc(sizeof(char) * (COMMAND_LENGTH + 10 + replyLength)); //Allocating enough space for the entire reply
 
     //Copying the reply command to the actual reply
     for(; i < COMMAND_LENGTH; i++) {
@@ -120,11 +123,12 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
 
     //sendMessage(replySocket, actualReply, i + 1);
 
+    printf("Replying: ");
     for(j = 0; j <= i; j++) {
         printf("%c", actualReply[j]);
     }
 
-    printf("Replying: %s", actualReply);
+    free(actualReply);
 }
 
 /**
@@ -255,6 +259,7 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
         else if(args[i] == '\0') {
             //Args were parsed wrongly. Args should end with a \n
             reply(retrieveReply, errorReply, replySocket, -1);
+            return;
         }
         else {
             fileName[i] = args[i];
@@ -270,6 +275,7 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     if(errno == ENOENT) {
         //File does not exist
         reply(retrieveReply, errorEOFReply, replySocket, -1);
+        return;
     }
 
     stat(filePath, &fileStats);
@@ -328,11 +334,15 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     if(sscanf(args, "%s %d", fileName, &fileSize) != 2) {
         //Something went wrong
         reply(uploadReply, errorReply, replySocket, -1);
+        return;
     }
 
     //Making args point to the beggining of the data
-    pointToArgs(&args);
-    pointToArgs(&args);
+    if(!pointToArgs(&args) || !pointToArgs(&args)) {
+        //Not enough args
+        reply(uploadReply, errorReply, replySocket, -1);
+        return;
+    }
 
     //Getting the file path
     sprintf(filePath, "%s/%s/%s", pathname, UID, fileName);
@@ -369,11 +379,16 @@ void upload(char* args, Sock* replySocket, char UID[]) {
         return;
     }
 
-    file = fopen(filePath, "r");
+    printf("File does not exist\n");
+    fflush(stdout);
+
+    file = fopen(filePath, "w");
 
     fwrite(args, sizeof(char), fileSize, file);
 
     fclose(file);
+
+    reply(uploadReply, okReply, replySocket, -1);
 }
 
 void deleteC(char* args, Sock* replySocket) {

@@ -270,7 +270,7 @@ int pointToArgs(char** commandAndArgs) {
         }
     }
 
-    *commandAndArgs++;
+    (*commandAndArgs)++;
 
     return 1;
 }
