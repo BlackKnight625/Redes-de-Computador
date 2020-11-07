@@ -126,15 +126,14 @@ void getASCommands(Sock *sfd, User *user) {
     if (words >= 4 && words <= 5 && strcmp(op, "VLC") == 0) {
         if (strcmp(user->uid, uid) == 0) {
             sprintf(buffer, "RVC OK\n");
-            sendMessage(sfd, buffer, strlen(buffer));
+            printf("VC: %s\n", vc);
         } else {
             sprintf(buffer, "RVC NOK\n");
-            sendMessage(sfd, buffer, strlen(buffer));
         }
     } else {
         sprintf(buffer, "ERR\n");
-        sendMessage(sfd, buffer, strlen(buffer));
     }
+    sendMessage(sfd, buffer, strlen(buffer));
 }
 
 void processCommands() {

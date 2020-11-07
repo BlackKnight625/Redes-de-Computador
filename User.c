@@ -9,7 +9,7 @@
 
 //Global variables
 
-Map *myMap = newMap();
+Map *myMap;
 char* asip;
 char* asport; 
 char* fsip; 
@@ -83,15 +83,15 @@ void userLoginCommand(){
 
     //RLO status
     int n= receiveMessage(userASsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
-    if(strcmp(buffer, "RLO OK")==0){
+    if(strcmp(buffer, "RLO OK\n")==0){
         printf("You are now logged in.\n");
     }
     else{
         printf("Login failed.\n");
-        UID[0]="\0";
-        pass[0]="\0";
+        UID[0]='\0';
+        pass[0]='\0';
     }
     
     //closes the TCP session
@@ -120,7 +120,7 @@ void userRequestCommand(){
     
     //RRQ status
     int n= receiveMessage(userASsession, buffer, SIZE);
-    buffer[n]="\0"; 
+    buffer[n]='\0'; 
 
     //closes the TCP session
     closeSocket(userASsession);
@@ -141,16 +141,16 @@ void userValidatesVC(){
 
     //RAU TID
     int n= receiveMessage(userASsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
     sscanf(buffer, "%s %s\n", arg, TID);
 
     i=atoi(TID);
     if(i==0){
-        printf("Authentication failed.\n"),
+        printf("Authentication failed.\n");
     }
     else{
-        printf("Authenticated! (TID=%d)", I);
+        printf("Authenticated! (TID=%s)\n", TID);
     }
     
     //closes the TCP session
@@ -171,9 +171,9 @@ void userRetrieveCommand(){
 
     //RRT status [Fsize data]
     int n= receiveMessage(userFSsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
-    sscanf(buffer, "RRT %s %d  %s\n", status, Fsize, data);
+    sscanf(buffer, "RRT %s %d %s\n", status, &Fsize, data);
 
     printf("%s (path: /%s/%s/%s \n", Fname, pathname, UID, Fname);
 
@@ -195,7 +195,7 @@ void userUploadCommand(){
 
     //RUP status
     int n= receiveMessage(userFSsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
     sscanf(buffer, "RUP %s\n", status);
 
@@ -223,7 +223,7 @@ void userDeleteCommand(){
 
     //RDL status
     int n= receiveMessage(userFSsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
     sscanf(buffer, "RDL %s\n", status);
 
@@ -241,7 +241,6 @@ void userDeleteCommand(){
 
 void userListCommand(){
     char buffer[SIZE];
-    int n=0;
     int j=0;
    
     //user establishes a TCP session with the FS
@@ -253,7 +252,7 @@ void userListCommand(){
 
     //RLS N [Fname Fsize]*
     int n= receiveMessage(userFSsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
     sscanf(buffer, "RLS %d\n", &n);
 
@@ -309,7 +308,7 @@ void userRemoveCommand(){
 
     //RRM status
     int n= receiveMessage(userFSsession, buffer, SIZE);
-    buffer[n]="\0";
+    buffer[n]='\0';
 
     sscanf(buffer, "RRM %s\n", status);
 
@@ -350,6 +349,9 @@ void userProcess() {
                 strcpy(Fname, arg3);
                 userRequestCommand();
             }
+            else {
+                printf("Unknown command.\n");
+            }
         }
 
         //sscanf receives 2 args
@@ -358,7 +360,7 @@ void userProcess() {
                 strcpy(VC, arg2);
                 userValidatesVC();
             }
-            else if ( (strcmp(arg1, retrieveCommand == 0) || (strcmp(arg1, rCommand) == 0) ){
+            else if ( (strcmp(arg1, retrieveCommand) == 0) || (strcmp(arg1, rCommand) == 0) ){
                 strcpy(Fname, arg2);
                 userRetrieveCommand();
             }
@@ -369,6 +371,9 @@ void userProcess() {
             else if ( (strcmp(arg1, deleteCommand)==0) || (strcmp(arg1, dCommand)== 0) ){
                 strcpy(Fname, arg2);
                 userDeleteCommand();
+            }
+            else {
+                printf("Unknown command.\n");
             }
         }
 
@@ -382,6 +387,9 @@ void userProcess() {
             }
             else if( (strcmp(arg1, exitCommand) ==0) ){
                 userExitCommand();
+            }
+            else {
+                printf("Unknown command.\n");
             }
         }
     }
@@ -402,9 +410,10 @@ If omitted, it assumes the value 59000+GN, where GN is the group number.
 */
 
 int main(int argc, char *argv[]) {
+    myMap = newMap();
 
     // parse arguments
-    if (argc <= 1 || argc % 2 != 0) {
+    if (argc > 1 && argc % 2 == 0) {
         fprintf(stderr, "not enough arguments\n");
     } else {
         for (int i = 1; i < argc; i++) {
