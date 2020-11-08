@@ -70,9 +70,18 @@ void removeElement(Map *myMap, char *key) {
             continue;
         } else {
             last->next = element->next;
+
+            // primeiro elemento tinha a key
+            if (element == last) {
+                myMap->elements = element->next;
+            }
+
             free(element->key);
             free(element->value);
             free(element);
+
+            myMap->size--;
+
             break;
         }
     }
@@ -254,8 +263,7 @@ int isCommand(const char command[], const char* possibleCommand) {
     for(i = 0; i < 3; i++) {
         cmd[i] = possibleCommand[i];
     }
-
-    i++;
+    
     cmd[i] = '\0';
 
     return !strcmp(command, cmd);
