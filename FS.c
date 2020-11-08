@@ -160,9 +160,11 @@ int validate(char* UID, char* TID) {
 
     sscanf(buffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
 
+    closeSocket(asSocket);
+
     //Reply format: CNF UID TID Fop [Fname]
     if(strcmp(treatedReplyBuffers[0], "CNF") != 0) {
-        //The reply command is wrong
+        //The reply command is wrong or it's an ERR
         return 0;
     }
     else if(strcmp(treatedReplyBuffers[1], UID) != 0) {
