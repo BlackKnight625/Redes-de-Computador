@@ -173,6 +173,7 @@ void userValidatesVC(){
 
 void userRetrieveCommand(){
     char buffer[SIZE];
+    FILE *fp;
 
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
@@ -189,16 +190,18 @@ void userRetrieveCommand(){
     data = (char*)malloc(sizeof(char)*Fsize);
     sscanf(buffer, "%*s %*s %*d %s", data);
 
-    // "download file" 
-    // fopen(fname, "w"); fwrite(buffer, sizeof(char), Fsize, f);
-    if(strcmp(status, "OK")==0){
+     if(strcmp(status, "OK")==0){
         printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
     }
-    
+
+    //download file
+    fp= fopen(fname, "w");
+    fwrite(data, sizeof(char), Fsize, fp);
 
     //closes the TCP session
     closeSocket(userFSsession);
     free(data);
+    fclose(fp);
 }
 
 
