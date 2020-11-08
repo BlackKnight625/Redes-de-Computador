@@ -187,36 +187,39 @@ void userRetrieveCommand(){
     buffer[n]='\0';
 
     sscanf(buffer, "RRT %s %d", status, &Fsize);
-    data = (char*)malloc(sizeof(char)*Fsize);
-    sscanf(buffer, "%*s %*s %*d %s", data);
 
-     if(strcmp(status, "OK")==0){
+    if(strcmp(status, "OK")==0){
+        data = buffer;
+        for (int i = 0; i < 3; i++) {
+            pointToArgs(&data);
+        }
         printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
-    }
 
-    //download file
-    fp= fopen(fname, "w");
-    fwrite(data, sizeof(char), Fsize, fp);
+        //download file
+        fp= fopen(Fname, "w");
+        fwrite(data, sizeof(char), Fsize, fp);
+
+        fclose(fp);
+    }
 
     //closes the TCP session
     closeSocket(userFSsession);
-    free(data);
-    fclose(fp);
 }
 
 
 void userUploadCommand(){
     char* buffer;
+    struct stat fileStats;
+    FILE *f;
+
+    if ((f = fopen(Fname, "rb")) == NULL) {
+        fprintf(stderr, "Unable to open file.\n");
+        return;
+    }
+
 
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
-
-    struct stat fileStats;
-    FILE *f;
-    if ((f = fopen(Fname, "rb")) == NULL) {
-        fprintf(stderr, "Unable to open file.\n");
-        exit(1);
-    }
 
     //Buffer size: UPL UID TID Fname Fsize data \n \0
     //              3+1+5+1+4+1+ x +1+ y +1+ z + 2   (z= sizeBytes)
