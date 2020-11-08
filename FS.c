@@ -73,23 +73,23 @@ Methods
 -----------------------------------------------*/
 
 char* getReplyForCommand(char command[]) {
-    if(isCommand(command, listCommand)) {
+    if(isCommand(listCommand, command)) {
         return listReply;
     }
-    else if(isCommand(command, retrieveCommand)) {
+    else if(isCommand(retrieveCommand, command)) {
         return retrieveReply;
     }
-    else if(isCommand(command, uploadCommand)) {
+    else if(isCommand(uploadCommand, command)) {
         return uploadReply;
     }
-    else if(isCommand(command, deleteCommand)) {
+    else if(isCommand(deleteCommand, command)) {
         return deleteReply;
     }
-    else if(isCommand(command, removeCommand)) {
+    else if(isCommand(removeCommand, command)) {
         return removeReply;
     }
     else {
-        return "";
+        return errorReply;
     }
 }
 
@@ -122,7 +122,7 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
     actualReply[i] = '\n';
     actualReply[i + 1] = '\0';
 
-    //sendMessage(replySocket, actualReply, i + 1);
+    sendMessage(replySocket, actualReply, i + 1);
 
     printf("Replying: ");
     for(j = 0; j <= i; j++) {
@@ -137,6 +137,47 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
  * Returns true if it's valid and false otherwise
  */
 int validate(char* UID, char* TID) {
+    Sock* asSocket = newUDPClient(asip, asport);
+    char buffer[32];
+    char replyBuffer[SIZE];
+    char treatedReplyBuffers[5][32];
+
+    //Deleting trash from the treatedReplyBuffers
+    for(int i = 0; i < 5; i++) {
+        for(int j = 0; j < 32; j++) {
+            treatedReplyBuffers[i][j] = '\0';
+        }
+    }
+
+    sprintf(buffer, "VLD %s %s\n", UID, TID);
+
+    sendMessage(asSocket, buffer, strlen(buffer));
+
+    int replySize = receiveMessage(asSocket, replyBuffer, SIZE);
+
+    //Deleting the '\n'
+    replyBuffer[replySize - 1] = '\0';
+
+    sscanf(buffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
+
+    //Reply format: CNF UID TID Fop [Fname]
+    if(strcmp(treatedReplyBuffers[0], "CNF") != 0) {
+        //The reply command is wrong
+        return 0;
+    }
+    else if(strcmp(treatedReplyBuffers[1], UID) != 0) {
+        //UID different than the one received
+        return 0;
+    }
+    else if(strcmp(treatedReplyBuffers[2], TID) != 0) {
+        //TID different than the one received
+        return 0;
+    }
+    else if(strcmp(treatedReplyBuffers[3], "E") == 0) {
+        //AS replied with error
+        return 0;
+    }
+
     return 1;
 }
 
@@ -489,6 +530,8 @@ void *newClientDealingThread(void* arg) {
 
     buffer[messageSize] = '\0';
 
+    printf("Receiving message: %s", buffer);
+
     if(pointToArgs(&args)) {
         //The command has args
 
@@ -496,7 +539,7 @@ void *newClientDealingThread(void* arg) {
             UID[i] = args[i];
         }
 
-        UID[i+1] = '\0';
+        UID[i] = '\0';
 
         //Making args point to the next arg
         if(pointToArgs(&args)) {
@@ -505,7 +548,7 @@ void *newClientDealingThread(void* arg) {
                 TID[i] = args[i];
             }
 
-            TID[i + 1] = '\0';
+            TID[i] = '\0';
 
             //Making args point to the next arg. It's no longer relevant if there are more args or not
             pointToArgs(&args);
