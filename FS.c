@@ -484,10 +484,10 @@ void *newClientDealingThread(void* arg) {
     int i;
     char* replyFirstWord;
 
-    receiveMessage(tcpUserSocket, buffer, SIZE);
+    int messageSize = receiveMessage(tcpUserSocket, buffer, SIZE);
     //Received a message from the user.
 
-    printf("%s", buffer);
+    buffer[messageSize] = '\0';
 
     if(pointToArgs(&args)) {
         //The command has args
