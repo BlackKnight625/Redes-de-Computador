@@ -209,7 +209,7 @@ void list(char* args, Sock* replySocket, char UID[]) {
             }
 
             //Adding the file name and its size to the buffer
-            bufferPointer += sprintf(bufferPointer, "%s %ld ", dir->d_name, fileStats.st_size);
+            bufferPointer += sprintf(bufferPointer, " %s %ld", dir->d_name, fileStats.st_size);
 
             amountFiles++;
         }
@@ -223,7 +223,7 @@ void list(char* args, Sock* replySocket, char UID[]) {
             reply(listReply, errorEOFReply, replySocket, -1);
         }
         else {
-            sprintf(replyBuffer, "%d %s", amountFiles, buffer);
+            sprintf(replyBuffer, "%d%s", amountFiles, buffer);
 
             reply(listReply, replyBuffer, replySocket, -1);
         }
