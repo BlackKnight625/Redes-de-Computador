@@ -122,7 +122,7 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
     actualReply[i] = '\n';
     actualReply[i + 1] = '\0';
 
-    //sendMessage(replySocket, actualReply, i + 1);
+    sendMessage(replySocket, actualReply, i + 1);
 
     printf("Replying: ");
     for(j = 0; j <= i; j++) {
@@ -496,7 +496,7 @@ void *newClientDealingThread(void* arg) {
             UID[i] = args[i];
         }
 
-        UID[i+1] = '\0';
+        UID[i] = '\0';
 
         //Making args point to the next arg
         if(pointToArgs(&args)) {
@@ -505,7 +505,7 @@ void *newClientDealingThread(void* arg) {
                 TID[i] = args[i];
             }
 
-            TID[i + 1] = '\0';
+            TID[i] = '\0';
 
             //Making args point to the next arg. It's no longer relevant if there are more args or not
             pointToArgs(&args);
