@@ -119,9 +119,12 @@ void getUDPrequests(Sock *sfd, UsersList *users) {
 
     memset(buffer, 0, SIZE);
 
-    receiveMessage(sfd, buffer, SIZE);
+    int n = receiveMessage(sfd, buffer, SIZE);
 
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, pdip, pdport);
+    buffer[n] = '\0';
+
+    printf("words: %d, %s", getWords(buffer), buffer);
 
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
@@ -151,6 +154,7 @@ void getUDPrequests(Sock *sfd, UsersList *users) {
 
         if (fop != NULL) {
             sprintf(buffer, "CNF %s %s %s\n", uid, pw, fop);
+            removeElement(user->tids, pw);
         } else {
             sprintf(buffer, "CNF %s %s E\n", uid, pw);
         }
@@ -231,8 +235,10 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
     char *canonname = getHostIp(sfd);
     
     memset(buffer, 0, SIZE);
-    receiveMessage(sfd, buffer, SIZE);
-    printf("%s", buffer);
+    int n = receiveMessage(sfd, buffer, SIZE);
+    buffer[n] = '\0';
+
+    printf("words: %d, %s", getWords(buffer), buffer);
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
 
     User *user = getUser(users, uid);
@@ -301,9 +307,11 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
         // array pw holds the RID
         if (user != NULL) {
             userVC = get(user->rids, pw);
-            if (strcmp(vc, userVC) == 0) {
+            if (userVC != NULL && strcmp(vc, userVC) == 0) {
                 tid = get(user->r2t, pw);
                 sprintf(buffer, "RAU %s\n", tid);
+                removeElement(user->rids, pw);
+                removeElement(user->r2t, pw);
             } else {
                 sprintf(buffer, "RAU 0000\n");
             }
@@ -341,7 +349,7 @@ void processCommands() {
 
         maxfd = sfdUDP->fd;
         maxfd = max(maxfd, sfdTCP->fd);
-        
+
         //timeout.tv_sec = 5;
         //timeout.tv_usec = 0;
         

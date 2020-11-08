@@ -131,6 +131,8 @@ void userRequestCommand(){
     int n= receiveMessage(userASsession, buffer, SIZE);
     buffer[n]='\0'; 
 
+    printf("%s", buffer);
+
     //closes the TCP session
     closeSocket(userASsession);
 }
@@ -151,6 +153,8 @@ void userValidatesVC(){
     //RAU TID
     int n= receiveMessage(userASsession, buffer, SIZE);
     buffer[n]='\0';
+
+    printf("%s", buffer);
 
     sscanf(buffer, "%s %s\n", arg, TID);
 

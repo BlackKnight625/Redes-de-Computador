@@ -158,7 +158,9 @@ int validate(char* UID, char* TID) {
     //Deleting the '\n'
     replyBuffer[replySize - 1] = '\0';
 
-    sscanf(buffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
+    printf("%s\n", replyBuffer);
+
+    sscanf(replyBuffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
 
     //Reply format: CNF UID TID Fop [Fname]
     if(strcmp(treatedReplyBuffers[0], "CNF") != 0) {

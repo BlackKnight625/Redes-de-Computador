@@ -70,9 +70,18 @@ void removeElement(Map *myMap, char *key) {
             continue;
         } else {
             last->next = element->next;
+
+            // primeiro elemento tinha a key
+            if (element == last) {
+                myMap->elements = element->next;
+            }
+
             free(element->key);
             free(element->value);
             free(element);
+
+            myMap->size--;
+
             break;
         }
     }
