@@ -71,6 +71,14 @@ void integerToChar(int n, char string[]) {
 }
 
 
+//Converts an integer to a char
+int getNDigits(int n){
+    char buffer[10];
+    sprintf(buffer, "%d", n);
+    return strlen(buffer);
+}
+
+
 void userLoginCommand(){
     char buffer[SIZE];
 
@@ -184,10 +192,36 @@ void userRetrieveCommand(){
 
 
 void userUploadCommand(){
-    char buffer[SIZE];
+    char* buffer;
 
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
+
+    struct stat fileStats;
+    FILE *f;
+    if ((f = fopen(Fname, "rb")) == NULL) {
+        fprintf(stderr, "Unable to open file.\n");
+        exit(1);
+    }
+
+    //Buffer size: UPL UID TID Fname Fsize data \n \0
+    //              3+1+5+1+4+1+ x +1+ y +1+ z + 2   (z= sizeBytes)
+
+    //Calculate x
+    int FnameSize = strlen(Fname);
+
+    stat(Fname, &fileStats);
+    int sizeBytes = fileStats.st_size;
+
+    //Calculate y
+    int FsizeSize = getNDigits(sizebytes);
+
+    //Allocates room in the buffer
+    buffer= (char*) calloc(19+FnameSize+FsizeSize+sizeBytes, sizeof(char));
+
+    data = (char*) calloc(sizeBytes, sizeof(char));
+
+    fread(data, sizeof(char), sizeBytes, f);
 
     //UPL UID TID Fname Fsize data
     sprintf(buffer, "UPL %s %s %s %d %s\n", UID, TID, Fname, Fsize, data);
@@ -205,6 +239,12 @@ void userUploadCommand(){
     else{
         printf("Unsuccesfull upload\n");
     }
+
+    //Closes the file
+    fclose(f);
+
+    free(data);
+    free(buffer);
 
     //Closes the TCP session
     closeSocket(userFSsession);
@@ -372,6 +412,9 @@ void userProcess() {
                 strcpy(Fname, arg2);
                 userDeleteCommand();
             }
+            else if ( strcmp(arg1, requestCommand)==0 ){
+                strcpy(Fop, arg2);
+                userRequestCommand();
             else {
                 printf("Unknown command.\n");
             }
