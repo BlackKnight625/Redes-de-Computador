@@ -336,8 +336,6 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     FILE* file;
     char directoryName[SIZE];
 
-    printf("%s", args);
-
     sprintf(directoryName, "%s/%s", pathname, UID);
 
     if(sscanf(args, "%s %d", fileName, &fileSize) != 2) {
