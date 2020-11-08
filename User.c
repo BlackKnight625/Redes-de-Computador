@@ -301,7 +301,14 @@ void userListCommand(){
     int n= receiveMessage(userFSsession, buffer, SIZE);
     buffer[n]='\0';
 
+    n = 0;
+
     sscanf(buffer, "RLS %d\n", &n);
+    
+    if (n == 0) {
+        closeSocket(userFSsession);
+        return;
+    }
 
     int *sizes = (int*) malloc(sizeof (int) * n);
     char **files = (char**)malloc(sizeof(char*)*n);
