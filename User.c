@@ -187,8 +187,10 @@ void userRetrieveCommand(){
 
     // "download file" 
     // fopen(fname, "w"); fwrite(buffer, sizeof(char), Fsize, f);
-
-    printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
+    if(strcmp(status, "OK")==0){
+        printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
+    }
+    
 
     //closes the TCP session
     closeSocket(userFSsession);
