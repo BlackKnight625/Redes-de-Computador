@@ -189,6 +189,19 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     sscanf(buffer, "%s %s", op, status);
 
     if (getWords(buffer) == 2 && strcmp(op, "RVC") == 0 && strcmp(status, "OK") == 0) {
+        // first delete the non used request IDs if there are any
+        Element *oldRID = user->rids->elements;
+        Element *oldTID = user->tids->elements;
+        if (oldRID != NULL) {
+            removeElement(user->rids, oldRID->key);
+            removeElement(user->r2t, oldRID->key);
+        }
+        if(oldTID != NULL) {
+            removeElement(user->tids, oldTID->key);
+        }
+
+        // insert the new values for the new request ID
+
         put(user->rids, rid, newVC);
         incrNumber(newVC);
 
