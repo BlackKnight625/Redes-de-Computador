@@ -320,8 +320,8 @@ void userListCommand(){
         j++;
     }
 
-    for(j=0; j < n-1; j++){
-        printf("%d. %s %d\n", j, files[j], sizes[j]);
+    for(j=0; j < n; j++){
+        printf("%d. %s %d\n", j+1, files[j], sizes[j]);
     }
     
     //closes the TCP session
