@@ -336,6 +336,8 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     FILE* file;
     char directoryName[SIZE];
 
+    printf("%s", args);
+
     sprintf(directoryName, "%s/%s", pathname, UID);
 
     if(sscanf(args, "%s %d", fileName, &fileSize) != 2) {
@@ -618,18 +620,20 @@ int main(int argc, char *argv[]) {
     clientConnectionsSocket = newTCPServer(fsport);
 
     //Tests
+    /*
     list("", NULL, "1");
     upload("Fich_Test3 10 abc\0de\tfgh\n", NULL, "1");
     retrieve("Fich_Test3\n", NULL, "1");
     deleteC("Fich_Test3\n", NULL, "1");
     removeC("", NULL, "1");
+    */
 
     //Listening for connections
-    /*while(TRUE) {
+    while(TRUE) {
         //Waiting for a client connection
         socket = acquire(clientConnectionsSocket);
         pthread_create(&threadID, (pthread_attr_t *) NULL, &newClientDealingThread, (void*) socket);
-    }*/
+    }
 
     end();
 

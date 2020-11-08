@@ -1,7 +1,8 @@
 //AS
 
 #include "libs/helper.h"
-#include <pthread.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define SIZE 128
 #define max(A, B) ((A) >= (B) ? (A) : (B))
@@ -13,6 +14,7 @@ char newVC[TID_LENGTH+1];
 
 typedef struct user {
     char uid[UID_LENGTH+1];
+    char pw[PASS_LENGTH+1];
     char pdip[41];
     char pdport[6];
     Map *tids; // maps a tid with a fop
@@ -32,6 +34,16 @@ UsersList *newUsersList() {
     users->users = NULL;
 }
 
+User *getUser(UsersList *users, char *uid) {
+    User *user = users->users;
+    for (; user != NULL; user = user->next) {
+        if (strcmp(user->uid, uid) == 0) {
+            return user;
+        }
+    }
+    return NULL;
+}
+
 void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
     User *user = getUser(users, uid);
     // user is already in the regist
@@ -39,7 +51,7 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
         return; 
     }
 
-    User *newUser = (User*)malloc(sizeof*(User));
+    User *newUser = (User*)malloc(sizeof(User));
     newUser->next = NULL;
     strcpy(newUser->uid, uid);
     strcpy(newUser->pw, pw);
@@ -61,19 +73,9 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
     users->size++;
 }
 
-User *getUser(UsersList *users, char *uid) {
-    User *user = users->users;
-    for (; user != NULL; user = user->next) {
-        if (strcmp(user->uid, uid) == 0) {
-            return user;
-        }
-    }
-    return NULL;
-}
-
 void removeUser(UsersList *users, char *uid) {
-    User *user = users->elements;
-    Element *last = user;
+    User *user = users->users;
+    User *last = user;
     while (user != NULL) {
         if (strcmp(user->uid, uid) != 0) {
             last = user;
@@ -144,13 +146,13 @@ void getUDPrequests(Sock *sfd, UsersList *users) {
         User *user = getUser(users, uid);
         char *fop;
         if (user != NULL) {
-            fop = get(users->tids, pw);
+            fop = get(user->tids, pw);
         }
 
         if (fop != NULL) {
-            fprintf(buffer, "CNF %s %s %s\n", uid, pw, fop);
+            sprintf(buffer, "CNF %s %s %s\n", uid, pw, fop);
         } else {
-            fprintf(buffer, "CNF %s %s E\n", uid, pw);
+            sprintf(buffer, "CNF %s %s E\n", uid, pw);
         }
     } else {
         // command not recognized
@@ -166,10 +168,12 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     memset(buffer, 0, SIZE);
     if (fname == NULL) {
-        sprintf(buffer, "VLC %s %s %s", user->uid, newVC, fop);
+        sprintf(buffer, "VLC %s %s %s\n", user->uid, newVC, fop);
     } else {
-        sprintf(buffer, "VLC %s %s %s %s", user->uid, newVC, fop, fname);
+        sprintf(buffer, "VLC %s %s %s %s\n", user->uid, newVC, fop, fname);
     }
+
+    printf("sending vc: %s", buffer);
 
     sendMessage(sfd, buffer, strlen(buffer));
 
@@ -200,6 +204,22 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     }  
 }
 
+char *getHostIp(Sock *sfd) {
+    char ip_addr[41];
+    socklen_t addrlen;
+    struct sockaddr_in addr;
+    addrlen = sizeof(addr);
+    if (getpeername(sfd->fd, (struct sockaddr *) &addr, &addrlen) != 0) {
+        fprintf(stderr, "unable to get peer name\n");
+        return NULL;
+    }
+
+    strcpy(ip_addr, inet_ntoa(addr.sin_addr));
+    char *ip = (char*)malloc(sizeof(char)*(strlen(ip_addr)+1));
+    strcpy(ip, ip_addr);
+    return ip;
+}
+
 void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
@@ -208,10 +228,11 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
     // establishes a TCP connection and handles requests
     Sock *sfd = acquire(sfdTCP);
 
-    char *canonname = sfd->res->ai_canonname;
+    char *canonname = getHostIp(sfd);
     
     memset(buffer, 0, SIZE);
     receiveMessage(sfd, buffer, SIZE);
+    printf("%s", buffer);
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
 
     User *user = getUser(users, uid);
@@ -232,8 +253,8 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
                 int newSize = strlen(uid);
                 if (newSize > oldSize) {
                     userID = realloc(userID, sizeof(char)*newSize);
-                    strcpy(userID, uid);
                 }
+                strcpy(userID, uid);
             }
         } else {
             sprintf(buffer, "RLO NOK\n");
@@ -279,7 +300,7 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
         char *tid;
         // array pw holds the RID
         if (user != NULL) {
-            userVC = get(user, pw);
+            userVC = get(user->rids, pw);
             if (strcmp(vc, userVC) == 0) {
                 tid = get(user->r2t, pw);
                 sprintf(buffer, "RAU %s\n", tid);
@@ -293,6 +314,8 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
     sendMessage(sfd, buffer, strlen(buffer));
 
     closeSocket(sfd);
+
+    free(canonname);
 }
 
 void processCommands() {
@@ -301,7 +324,7 @@ void processCommands() {
     struct timeval timeout;
 
 
-    UsersList users = newUsersList();
+    UsersList *users = newUsersList();
     initNumber(newTID);
     incrNumber(newTID); // TID 0000 means failed therefore number starts at 0001
     initNumber(newVC);
