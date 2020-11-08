@@ -254,8 +254,7 @@ int isCommand(const char command[], const char* possibleCommand) {
     for(i = 0; i < 3; i++) {
         cmd[i] = possibleCommand[i];
     }
-
-    i++;
+    
     cmd[i] = '\0';
 
     return !strcmp(command, cmd);
