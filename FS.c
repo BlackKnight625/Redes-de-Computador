@@ -487,6 +487,8 @@ void *newClientDealingThread(void* arg) {
     receiveMessage(tcpUserSocket, buffer, SIZE);
     //Received a message from the user.
 
+    printf("%s", buffer);
+
     if(pointToArgs(&args)) {
         //The command has args
 
@@ -494,7 +496,7 @@ void *newClientDealingThread(void* arg) {
             UID[i] = args[i];
         }
 
-        UID[i + 1] = '\0';
+        UID[i+1] = '\0';
 
         //Making args point to the next arg
         if(pointToArgs(&args)) {

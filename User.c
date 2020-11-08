@@ -2,6 +2,7 @@
 
 #include "libs/helper.h"
 #include <time.h>
+#include <sys/stat.h>
 
 #define SIZE 128
 #define max(A, B) ((A) >= (B) ? (A) : (B))
@@ -168,7 +169,6 @@ void userValidatesVC(){
 
 void userRetrieveCommand(){
     char buffer[SIZE];
-    data = (char*) malloc(sizeof(char) * (Fsize));
 
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
@@ -181,9 +181,14 @@ void userRetrieveCommand(){
     int n= receiveMessage(userFSsession, buffer, SIZE);
     buffer[n]='\0';
 
-    sscanf(buffer, "RRT %s %d %s\n", status, &Fsize, data);
+    sscanf(buffer, "RRT %s %d", status, &Fsize);
+    data = (char*)malloc(sizeof(char)*Fsize);
+    sscanf(buffer, "%*s %*s %*d %s", data);
 
-    printf("%s (path: /%s/%s/%s \n", Fname, pathname, UID, Fname);
+    // "download file" 
+    // fopen(fname, "w"); fwrite(buffer, sizeof(char), Fsize, f);
+
+    printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
 
     //closes the TCP session
     closeSocket(userFSsession);
@@ -211,17 +216,17 @@ void userUploadCommand(){
     int FnameSize = strlen(Fname);
 
     stat(Fname, &fileStats);
-    int sizeBytes = fileStats.st_size;
+    Fsize = fileStats.st_size;
 
     //Calculate y
-    int FsizeSize = getNDigits(sizebytes);
+    int FsizeSize = getNDigits(Fsize);
 
     //Allocates room in the buffer
-    buffer= (char*) calloc(19+FnameSize+FsizeSize+sizeBytes, sizeof(char));
+    buffer= (char*) calloc(19+FnameSize+FsizeSize+Fsize, sizeof(char));
 
-    data = (char*) calloc(sizeBytes, sizeof(char));
+    data = (char*) calloc(Fsize, sizeof(char));
 
-    fread(data, sizeof(char), sizeBytes, f);
+    fread(data, sizeof(char), Fsize, f);
 
     //UPL UID TID Fname Fsize data
     sprintf(buffer, "UPL %s %s %s %d %s\n", UID, TID, Fname, Fsize, data);
@@ -232,6 +237,8 @@ void userUploadCommand(){
     buffer[n]='\0';
 
     sscanf(buffer, "RUP %s\n", status);
+
+    printf("%s", buffer);
 
     if(strcmp(status, "OK")==0){
         printf("Success uploading %s\n", Fname);
@@ -320,8 +327,8 @@ void userListCommand(){
         j++;
     }
 
-    for(j=0; j < n-1; j++){
-        printf("%d. %s %d\n", j, files[j], sizes[j]);
+    for(j=0; j < n; j++){
+        printf("%d. %s %d\n", j+1, files[j], sizes[j]);
     }
     
     //closes the TCP session
@@ -415,6 +422,7 @@ void userProcess() {
             else if ( strcmp(arg1, requestCommand)==0 ){
                 strcpy(Fop, arg2);
                 userRequestCommand();
+            }
             else {
                 printf("Unknown command.\n");
             }
