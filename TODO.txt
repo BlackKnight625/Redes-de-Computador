@@ -1,0 +1,3 @@
+PD só poder registar 1 user
+Tratar dos timeouts das respostas (ex: quando o FS pede ao AS para validar, tem de retornar 0 passado um bocado)
+Tratar quando se faz req U de um ficheiro que não existe
