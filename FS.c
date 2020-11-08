@@ -336,8 +336,6 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     FILE* file;
     char directoryName[SIZE];
 
-    printf("%s", args);
-
     sprintf(directoryName, "%s/%s", pathname, UID);
 
     if(sscanf(args, "%s %d", fileName, &fileSize) != 2) {
@@ -498,7 +496,7 @@ void *newClientDealingThread(void* arg) {
             UID[i] = args[i];
         }
 
-        UID[i + 1] = '\0';
+        UID[i+1] = '\0';
 
         //Making args point to the next arg
         if(pointToArgs(&args)) {
