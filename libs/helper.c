@@ -282,3 +282,21 @@ int pointToArgs(char** commandAndArgs) {
 
     return 1;
 }
+
+int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end) {
+    char aux[size];
+    int totalBytesRcvd = 0;
+
+    int bytesRead = receiveMessage(sfd, aux, size);
+    totalBytesRcvd += bytesRead;
+    strcpy(buffer, aux);
+
+    while (aux[bytesRead-1] != end) {
+        printf("Read: %s\n", buffer);
+        bytesRead = receiveMessage(sfd, aux, size);
+        totalBytesRcvd += bytesRead;
+        strcpy(buffer+totalBytesRcvd, aux);
+    }
+
+    return totalBytesRcvd;
+}

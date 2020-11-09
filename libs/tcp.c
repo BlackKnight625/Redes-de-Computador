@@ -53,21 +53,39 @@ Sock *acquireTCP(int fd) {
 }
 
 int sendMessageTCP(int sfd, char *buffer, int size) {
-    int n = write(sfd, buffer, size);
-    if (n == -1) {
-        fprintf(stderr, "failed to write\n");
-        exit(1);
+    int nwritten;
+    int nleft = size;
+    int totalwritten = 0;
+    while (nleft > 0) {   
+        nwritten = write(sfd,buffer,size);
+        if(nwritten <= 0) {
+            fprintf(stderr, "failed to write\n");
+            exit(1);
+        }
+        nleft -= nwritten;
+        buffer += nwritten;
+        totalwritten += nwritten;
     }
-    return n;
+    return totalwritten;
 }
 
 int receiveMessageTCP(int sfd, char *buffer, int size) {
-    int n = read(sfd, buffer, size);
-    if (n == -1) {
-        fprintf(stderr, "failed to read\n");
-        exit(1);
+    int bytesRead;
+    int nleft = size;
+    while(nleft > 0) { 
+        printf("Readin from fd\n");
+        bytesRead = read(sfd, buffer, nleft);
+        printf("%d\n", bytesRead);
+        if(bytesRead == -1) {
+            fprintf(stderr, "failed to read\n");
+            exit(1);
+        } else if ( bytesRead == 0) {
+            break;//closed by peer
+        }
+        nleft -= bytesRead;
+        buffer += bytesRead;
     }
-    return n;
+    return size-nleft;
 }
 
 void closeSocketTCP(Sock *sfd) {

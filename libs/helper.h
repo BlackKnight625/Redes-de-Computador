@@ -28,6 +28,8 @@ Sock *newTCPClient(char *hostname, char *port);
 Sock *newUDPServer(char *port);
 Sock *newUDPClient(char *hostname, char *port);
 
+int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end);
+
 /*Verifies if the given command is big enough to be a command, to prevent single chars or only 2 chars
 from being considered, for example*/
 int canBeACommand(const char command[]);
