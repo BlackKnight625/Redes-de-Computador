@@ -7,11 +7,6 @@
 #define SIZE 128
 #define max(A, B) ((A) >= (B) ? (A) : (B))
 
-char *asport;
-int verboseMode = FALSE;
-char newTID[TID_LENGTH+1];
-char newVC[TID_LENGTH+1];
-
 typedef struct user {
     char uid[UID_LENGTH+1];
     char pw[PASS_LENGTH+1];
@@ -27,6 +22,15 @@ typedef struct list {
     int size;
     User *users;
 } UsersList;
+
+//globals
+char *asport;
+int verboseMode = FALSE;
+char newTID[TID_LENGTH+1];
+char newVC[TID_LENGTH+1];
+Map *ips;
+UsersList *users;
+
 
 UsersList *newUsersList() {
     UsersList *users = (UsersList*)malloc(sizeof(UsersList));
@@ -112,7 +116,7 @@ void incrNumber(char *array) {
     }
 }
 
-void getUDPrequests(Sock *sfd, UsersList *users, Map *ips) {
+void getUDPrequests(Sock *sfd) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char pdip[SIZE], pdport[SIZE];
@@ -257,13 +261,15 @@ char *getHostIp(Sock *sfd) {
     return ip;
 }
 
-void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
+// need to protect ips e users in case different threads go zum zum
+// FIX ME
+void *getUserRequests(void *arg) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char vc[VALIDATION_CODE_LENGTH+1], fname[FNAME_LENGTH+1];
 
     // establishes a TCP connection and handles requests
-    Sock *sfd = acquire(sfdTCP);
+    Sock *sfd = (Sock *)arg;
 
     char *canonname = getHostIp(sfd);
     
@@ -365,12 +371,12 @@ void processCommands() {
     struct timeval timeout;
 
 
-    UsersList *users = newUsersList();
+    users = newUsersList();
     initNumber(newTID);
     incrNumber(newTID); // TID 0000 means failed therefore number starts at 0001
     initNumber(newVC);
 
-    Map *ips = newMap();
+    ips = newMap();
 
     Sock *sfdUDP = newUDPServer(asport);
     Sock *sfdTCP = newTCPServer(asport);
@@ -393,11 +399,13 @@ void processCommands() {
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            getUDPrequests(sfdUDP, users, ips);
+            getUDPrequests(sfdUDP);
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
-            getUserRequests(sfdTCP, users, ips);
+            Sock *newSock = acquire(sfdTCP);
+            pthread_t thread;
+            pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
         }
 
         // insert other FD_ISSET conditions here
