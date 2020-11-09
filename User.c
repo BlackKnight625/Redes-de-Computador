@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 
 #define SIZE 128
+#define REPLY_SIZE 512
 #define max(A, B) ((A) >= (B) ? (A) : (B))
 
 
@@ -174,6 +175,7 @@ void userValidatesVC(){
 void userRetrieveCommand(){
     char buffer[SIZE];
     FILE *fp;
+    int readingSize;
 
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
@@ -197,10 +199,27 @@ void userRetrieveCommand(){
 
         //download file
         fp= fopen(Fname, "w");
-        fwrite(data, sizeof(char), Fsize, fp);
+
+        //Reading batches of data from the socket
+        while(Fsize > 0) {
+            if(Fsize > REPLY_SIZE) {
+                readingSize = REPLY_SIZE;
+            }
+            else {
+                readingSize = Fsize;
+            }
+
+            receiveMessage(userFSsession, buffer, readingSize);
+
+            Fsize -= readingSize;
+
+            fwrite(data, sizeof(char), readingSize, fp);
+        }
 
         fclose(fp);
     }
+
+    
 
     //closes the TCP session
     closeSocket(userFSsession);
