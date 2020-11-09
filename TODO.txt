@@ -35,5 +35,8 @@ Dúvidas:
  Q: É possível a App user deixar fazer vários logins? Ou uma vez feito um login naquela maquina, não são aceites outros até ser feito log out?
  A:
 
+ Q: Qual é o tamanho mínimo das mensagens recebidas pelo read do TCP?
+ A:
+
 Just existencial crisis:
  Quando o user faz remove, é o mesmo que fazer logout do AS. O que é que isto significa? O user não deverá conseguir enviar mais comandos ao AS/FS?
