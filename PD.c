@@ -72,7 +72,7 @@ int unregisterUser(User *user) {
     sscanf(buffer, "%s %s", op, status);
 
     if (getWords(buffer) == 2 && strcmp(op, "RUN") == 0 && strcmp(status, "OK") == 0) {
-        return TRUE; // successfuly added user
+        return TRUE; // successfuly unregistered user
     } else {
         return FALSE;
     }
@@ -125,10 +125,10 @@ void getASCommands(Sock *sfd, User *user) {
     memset(buffer, 0, SIZE);
     if (words >= 4 && words <= 5 && strcmp(op, "VLC") == 0) {
         if (strcmp(user->uid, uid) == 0) {
-            sprintf(buffer, "RVC OK\n");
+            sprintf(buffer, "RVC %s OK\n", uid);
             printf("VC: %s\n", vc);
         } else {
-            sprintf(buffer, "RVC NOK\n");
+            sprintf(buffer, "RVC %s NOK\n", uid);
         }
     } else {
         sprintf(buffer, "ERR\n");

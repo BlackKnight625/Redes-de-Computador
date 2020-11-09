@@ -379,10 +379,16 @@ void userRemoveCommand(){
     sscanf(buffer, "RRM %s\n", status);
 
     if( strcmp(status, "OK")==0 ){
-        printf( "The file %s was succesfully removed\n", Fname);
+        printf( "The user was removed\n");
     }
-    if( strcmp(status, "NOK")==0 ){
-        printf( "There was an error when removing the file %s \n", Fname);
+    else if( strcmp(status, "NOK")==0 ){
+        printf( "The user folder doesn't exist\n");
+    }
+    else if (strcmp(status, "INV") == 0) {
+        printf("This command was not validated\n");
+    }
+    else if (strcmp(status, "ERR") == 0) {
+        printf("This command was not recognized\n");
     }
 
     //closes the TCP session

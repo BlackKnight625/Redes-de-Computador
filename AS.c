@@ -112,7 +112,7 @@ void incrNumber(char *array) {
     }
 }
 
-void getUDPrequests(Sock *sfd, UsersList *users) {
+void getUDPrequests(Sock *sfd, UsersList *users, Map *ips) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char pdip[SIZE], pdport[SIZE];
@@ -154,6 +154,22 @@ void getUDPrequests(Sock *sfd, UsersList *users) {
 
         if (fop != NULL) {
             sprintf(buffer, "CNF %s %s %s\n", uid, pw, fop);
+
+            // if operation is remove
+            // user must be logged out
+            if (strcmp(fop, "X") == 0) {
+                Element *element = ips->elements;
+                for (; element != NULL; element = element->next) {
+                    if (strcmp(element->value, uid) == 0) {
+                        break;
+                    }
+                }
+                if (element != NULL) {
+                    printf("user %s logged out\n", element->value);
+                    removeElement(ips, element->key);
+                }
+            }
+
             removeElement(user->tids, pw);
         } else {
             sprintf(buffer, "CNF %s %s E\n", uid, pw);
@@ -186,9 +202,9 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     closeSocket(sfd);
 
-    sscanf(buffer, "%s %s", op, status);
+    sscanf(buffer, "%s %*s %s", op, status);
 
-    if (getWords(buffer) == 2 && strcmp(op, "RVC") == 0 && strcmp(status, "OK") == 0) {
+    if (getWords(buffer) == 3 && strcmp(op, "RVC") == 0 && strcmp(status, "OK") == 0) {
         // first delete the non used request IDs if there are any
         Element *oldRID = user->rids->elements;
         Element *oldTID = user->tids->elements;
@@ -205,7 +221,11 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
         put(user->rids, rid, newVC);
         incrNumber(newVC);
 
-        sprintf(buffer, "%s %s", fop, fname);
+        if (fname == NULL) {
+            sprintf(buffer, "%s", fop);
+        } else {
+            sprintf(buffer, "%s %s", fop, fname);
+        }
         put(user->tids, newTID, buffer);
 
         put(user->r2t, rid, newTID);
@@ -260,7 +280,7 @@ void *getUserRequests(Sock *sfdTCP, UsersList *users, Map *ips) {
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words == 3 && strcmp(op, "LOG") == 0) {
-        if (user  != NULL && strcmp(user->pw, pw) == 0) {
+        if (user != NULL && strcmp(user->pw, pw) == 0) {
             sprintf(buffer, "RLO OK\n");
             // create a new canonname
             if (userID == NULL) {
@@ -373,7 +393,7 @@ void processCommands() {
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            getUDPrequests(sfdUDP, users);
+            getUDPrequests(sfdUDP, users, ips);
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
