@@ -3,6 +3,7 @@
 #include "libs/helper.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define SIZE 128
 #define max(A, B) ((A) >= (B) ? (A) : (B))
@@ -116,10 +117,12 @@ void incrNumber(char *array) {
     }
 }
 
-void getUDPrequests(Sock *sfd) {
+void *getUDPrequests(void *arg) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char pdip[SIZE], pdport[SIZE];
+
+    Sock *sfd = (Sock *)arg;
 
     memset(buffer, 0, SIZE);
 
@@ -399,7 +402,8 @@ void processCommands() {
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            getUDPrequests(sfdUDP);
+            pthread_t thread;
+            pthread_create(&thread, NULL, getUDPrequests, (void*)sfdUDP);
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
