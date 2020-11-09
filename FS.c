@@ -122,7 +122,7 @@ char getCharForCommand(char command[]) {
 void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) {
     int i = 0, j = 0;
     int replyLength = replySize == -1 ? strlen(reply) : replySize;
-    char* actualReply[COMMAND_LENGTH + 10 + replyLength];
+    char actualReply[COMMAND_LENGTH + 10 + replyLength];
 
     //Copying the reply command to the actual reply
     for(; i < COMMAND_LENGTH; i++) {
@@ -592,7 +592,6 @@ void *newClientDealingThread(void* arg) {
     accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer, COMMAND_LENGTH + 1, ' ');
 
     if(isCommand(uploadCommand, buffer)) {
-        int accumulatedBytes = 0;
         //The upload command must be read differently due to the arbitrary size of Data
         accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, UID_LENGTH + 1, ' ');
         accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, TID_LENGTH + 1, ' ');

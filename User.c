@@ -91,7 +91,7 @@ void userLoginCommand(){
     sendMessage(userASsession, buffer, strlen(buffer));
 
     //RLO status
-    int n= receiveMessage(userASsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userASsession, buffer, SIZE, '\n');
     buffer[n]='\0';
 
     if(strcmp(buffer, "RLO OK\n")==0){
@@ -128,7 +128,7 @@ void userRequestCommand(){
     }
     
     //RRQ status
-    int n= receiveMessage(userASsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userASsession, buffer, SIZE, '\n');
     buffer[n]='\0'; 
 
     printf("%s", buffer);
@@ -151,7 +151,7 @@ void userValidatesVC(){
     sendMessage(userASsession, buffer, strlen(buffer));
 
     //RAU TID
-    int n= receiveMessage(userASsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userASsession, buffer, SIZE, '\n');
     buffer[n]='\0';
 
     printf("%s", buffer);
@@ -245,7 +245,7 @@ void userUploadCommand(){
     sendMessage(userFSsession, buffer, strlen(buffer));
 
     //RUP status
-    int n= receiveMessage(userFSsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
     buffer[n]='\0';
 
     sscanf(buffer, "RUP %s\n", status);
@@ -281,7 +281,7 @@ void userDeleteCommand(){
     sendMessage(userFSsession, buffer, strlen(buffer));
 
     //RDL status
-    int n= receiveMessage(userFSsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
     buffer[n]='\0';
 
     sscanf(buffer, "RDL %s\n", status);
@@ -310,7 +310,7 @@ void userListCommand(){
     sendMessage(userFSsession, buffer, strlen(buffer));
 
     //RLS N [Fname Fsize]*
-    int n= receiveMessage(userFSsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
     buffer[n]='\0';
 
     n = 0;
@@ -373,7 +373,7 @@ void userRemoveCommand(){
     sendMessage(userFSsession, buffer, strlen(buffer));
 
     //RRM status
-    int n= receiveMessage(userFSsession, buffer, SIZE);
+    int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
     buffer[n]='\0';
 
     sscanf(buffer, "RRM %s\n", status);
