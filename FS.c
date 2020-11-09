@@ -486,11 +486,17 @@ void upload(char* args, Sock* replySocket, char UID[]) {
             readingSize = fileSize;
         }
 
+        printf("Reading size: %d, Size left: %d\n", readingSize, fileSize);
+        fflush(stdout);
+
         receiveMessage(replySocket, buffer, readingSize);
 
         fileSize -= readingSize;
 
         fwrite(buffer, sizeof(char), readingSize, file);
+
+        printf("Wrote in file: %s\n", buffer);
+        fflush(stdout);
     }
 
     fclose(file);
