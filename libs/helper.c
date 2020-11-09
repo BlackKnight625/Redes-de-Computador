@@ -283,20 +283,28 @@ int pointToArgs(char** commandAndArgs) {
     return 1;
 }
 
+// reads at most size bytes from sfd to buffer. stops reading after character 'end'
 int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end) {
-    char aux[size];
+    char byte;
     int totalBytesRcvd = 0;
+    int bytesRead;
 
-    int bytesRead = receiveMessage(sfd, aux, size);
-    totalBytesRcvd += bytesRead;
-    strcpy(buffer, aux);
-
-    while (aux[bytesRead-1] != end) {
-        printf("Read: %s\n", buffer);
-        bytesRead = receiveMessage(sfd, aux, size);
-        totalBytesRcvd += bytesRead;
-        strcpy(buffer+totalBytesRcvd, aux);
+    if (receiveMessage(sfd, &byte, 1) == 0) {
+        return totalBytesRcvd;
     }
+
+    sprintf(buffer+totalBytesRcvd, "%c", byte);
+
+    // le do socket byte a byte
+    while (buffer[totalBytesRcvd] != end) {
+        totalBytesRcvd++;
+        if (receiveMessage(sfd, &byte, 1) == 0) {
+            break; // closed from peer
+        }
+
+        sprintf(buffer+totalBytesRcvd, "%c", byte);
+    }
+    totalBytesRcvd++;
 
     return totalBytesRcvd;
 }

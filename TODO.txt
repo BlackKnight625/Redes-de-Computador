@@ -21,10 +21,10 @@ Dúvidas:
  A: FS verifica com o AS o nome do ficheiro
  
  Q: Fazer exit no User não faz log out do AS?
- A:
+ A: exit faz logout ou seja fecha o socket, (remove tira o registo?)
  
  Q: É possível existirem vários Users ligados com o mesmo UID? (Aqui o problema surge quando o user faz remove (logout) porque não sabemos qual o IP do user que vai ser desconectado uma vez que é o FS que pede para fazer logout)
- A:
+ A: Não
 
  Q: Qual a resposta do AS se validar uma operação mas o user não está logado? E se o user não estiver registado?
  A:

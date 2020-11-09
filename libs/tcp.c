@@ -73,9 +73,7 @@ int receiveMessageTCP(int sfd, char *buffer, int size) {
     int bytesRead;
     int nleft = size;
     while(nleft > 0) { 
-        printf("Readin from fd\n");
         bytesRead = read(sfd, buffer, nleft);
-        printf("%d\n", bytesRead);
         if(bytesRead == -1) {
             fprintf(stderr, "failed to read\n");
             exit(1);
