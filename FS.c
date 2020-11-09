@@ -93,6 +93,27 @@ char* getReplyForCommand(char command[]) {
     }
 }
 
+char getCharForCommand(char command[]) {
+    if(isCommand(listCommand, command)) {
+        return 'L';
+    }
+    else if(isCommand(retrieveCommand, command)) {
+        return 'R';
+    }
+    else if(isCommand(uploadCommand, command)) {
+        return 'U';
+    }
+    else if(isCommand(deleteCommand, command)) {
+        return 'D';
+    }
+    else if(isCommand(removeCommand, command)) {
+        return 'X';
+    }
+    else {
+        return '\0';
+    }
+}
+
 /**
  * Replies to the given reply socket the replyCommand followed by the reply and a '\n' at the end.
  * If replySize = -1, the reply size is calculated via strlen(). If the reply is suposed to
@@ -136,7 +157,7 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
  * Vallidates the given UID and TID, by sending a message to the AS.
  * Returns true if it's valid and false otherwise
  */
-int validate(char* UID, char* TID) {
+int validate(char* UID, char* TID, char* args, char* commandBeggining) {
     Sock* asSocket = newUDPClient(asip, asport);
     char buffer[32];
     char replyBuffer[SIZE];
@@ -158,7 +179,7 @@ int validate(char* UID, char* TID) {
     //Deleting the '\n'
     replyBuffer[replySize - 1] = '\0';
 
-    printf("%s\n", replyBuffer);
+    printf("Message from AS: %s\n", replyBuffer);
 
     sscanf(replyBuffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
 
@@ -177,9 +198,27 @@ int validate(char* UID, char* TID) {
         //TID different than the one received
         return 0;
     }
-    else if(strcmp(treatedReplyBuffers[3], "E") == 0) {
-        //AS replied with error
+    else if(treatedReplyBuffers[3][0] != getCharForCommand(commandBeggining)) {
+        //The operation letter received from the AS is different than the command that wants to be executed
         return 0;
+    }
+
+    if(treatedReplyBuffers[4][0] != '\0') {
+        //AS replied with a File name. As such, it will be checked if it matches with the Fname in args
+        char fname[FNAME_LENGTH + 1];
+
+        //Copying the Fname in args
+        for(int i = 0; i < FNAME_LENGTH; i++) {
+            if(args[i] == '\n' || args[i] == '\0' || args[i] == ' ') {
+                fname[i] = '\0';
+                break;
+            }
+            else {
+                fname[i] = args[i];
+            }
+        }
+
+        return strcmp(fname, treatedReplyBuffers[4]) == 0;
     }
 
     return 1;
@@ -416,9 +455,6 @@ void upload(char* args, Sock* replySocket, char UID[]) {
         closedir(directory);
     }
 
-    printf("Amount files: %d\n", amountFiles);
-    fflush(stdout);
-
     if(amountFiles >= maxAmountFiles) {
         //User has reached the maximum amount of files
         reply(uploadReply, "FULL", replySocket, -1);
@@ -557,7 +593,7 @@ void *newClientDealingThread(void* arg) {
             //Making args point to the next arg. It's no longer relevant if there are more args or not
             pointToArgs(&args);
 
-            if(validate(UID, TID)) {
+            if(validate(UID, TID, args, buffer)) {
                 if(isCommand(listCommand, buffer)) {
                     list(args, tcpUserSocket, UID);
                 }

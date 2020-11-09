@@ -256,14 +256,14 @@ int canBeACommand(const char command[]) {
 }
 
 int isCommand(const char command[], const char* possibleCommand) {
-    char cmd[4]; //Commands only have 3 chars
+    char cmd[COMMAND_LENGTH + 1]; //Commands only have 3 chars
     int i;
 
     //Copying the first 3 chars from possibleCommand
-    for(i = 0; i < 3; i++) {
+    for(i = 0; i < COMMAND_LENGTH; i++) {
         cmd[i] = possibleCommand[i];
     }
-    
+
     cmd[i] = '\0';
 
     return !strcmp(command, cmd);

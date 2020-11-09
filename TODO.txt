@@ -9,10 +9,10 @@ Dúvidas:
  A: Não é possível fazer 2 ou mais requests seguidos
  
  Q: É possível fazer Fops se a interação anterior não tiver sido a sua validação? (Ex: req U f1.txt; val x; req U f2.txt; val y; upload f1.txt; -> would this work?)
- A:  
+ A: Não
 
- Q: Fazer exit no PD elimina o registo do user no AS? SIM
- A: 
+ Q: Fazer exit no PD elimina o registo do user no AS?
+ A: Não
  
  Q: É possível fazer mais do que um 1 registo no PD?
  A: Não, 1 PD apenas regista 1 UID
