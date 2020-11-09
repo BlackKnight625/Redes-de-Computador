@@ -592,7 +592,6 @@ void *newClientDealingThread(void* arg) {
     accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer, COMMAND_LENGTH + 1, ' ');
 
     if(isCommand(uploadCommand, buffer)) {
-        int accumulatedBytes = 0;
         //The upload command must be read differently due to the arbitrary size of Data
         accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, UID_LENGTH + 1, ' ');
         accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, TID_LENGTH + 1, ' ');
@@ -611,54 +610,60 @@ void *newClientDealingThread(void* arg) {
 
     printf("Receiving message: %s", buffer);
 
-    //The command has args
-
-    for(i = 0; i < UID_LENGTH; i++) {
-        UID[i] = args[i];
-    }
-
-    UID[i] = '\0';
-
-    //Making args point to the next arg
     if(pointToArgs(&args)) {
-        
-        for(i = 0; i < TID_LENGTH; i++) {
-            TID[i] = args[i];
+        //The command has args
+
+        for(i = 0; i < UID_LENGTH; i++) {
+            UID[i] = args[i];
         }
 
-        TID[i] = '\0';
+        UID[i] = '\0';
 
-        //Making args point to the next arg. It's no longer relevant if there are more args or not
-        pointToArgs(&args);
+        //Making args point to the next arg
+        if(pointToArgs(&args)) {
+            
+            for(i = 0; i < TID_LENGTH; i++) {
+                TID[i] = args[i];
+            }
 
-        if(validate(UID, TID, args, buffer)) {
-            if(isCommand(listCommand, buffer)) {
-                list(args, tcpUserSocket, UID);
+            TID[i] = '\0';
+
+            //Making args point to the next arg. It's no longer relevant if there are more args or not
+            pointToArgs(&args);
+
+            if(validate(UID, TID, args, buffer)) {
+                if(isCommand(listCommand, buffer)) {
+                    list(args, tcpUserSocket, UID);
+                }
+                else if(isCommand(retrieveCommand, buffer)) {
+                    retrieve(args, tcpUserSocket, UID);
+                }
+                else if(isCommand(uploadCommand, buffer)) {
+                    upload(args, tcpUserSocket, UID);
+                }
+                else if(isCommand(deleteCommand, buffer)) {
+                    deleteC(args, tcpUserSocket, UID);
+                }
+                else if(isCommand(removeCommand, buffer)) {
+                    removeC(args, tcpUserSocket, UID);
+                }
+                else if(isCommand(closeConnectionCommand, buffer)) {
+                    //Closing connection
+                    printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
+                }
             }
-            else if(isCommand(retrieveCommand, buffer)) {
-                retrieve(args, tcpUserSocket, UID);
-            }
-            else if(isCommand(uploadCommand, buffer)) {
-                upload(args, tcpUserSocket, UID);
-            }
-            else if(isCommand(deleteCommand, buffer)) {
-                deleteC(args, tcpUserSocket, UID);
-            }
-            else if(isCommand(removeCommand, buffer)) {
-                removeC(args, tcpUserSocket, UID);
-            }
-            else if(isCommand(closeConnectionCommand, buffer)) {
-                //Closing connection
-                printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
+            else {
+                //UID TID Invalid
+                reply(getReplyForCommand(buffer), errorInvalidTIDReply, tcpUserSocket, -1);
             }
         }
         else {
-            //UID TID Invalid
-            reply(getReplyForCommand(buffer), errorInvalidTIDReply, tcpUserSocket, -1);
+            //args does not contain any more args
+            reply(getReplyForCommand(buffer), errorReply, tcpUserSocket, -1);
         }
     }
     else {
-        //args does not contain any more args
+        //There are no more args
         reply(getReplyForCommand(buffer), errorReply, tcpUserSocket, -1);
     }
 
