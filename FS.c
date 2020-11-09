@@ -120,11 +120,9 @@ char getCharForCommand(char command[]) {
  * contain arbitrairy data, then its size must be specified in replySize
  */
 void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) {
-    char* actualReply;
     int i = 0, j = 0;
     int replyLength = replySize == -1 ? strlen(reply) : replySize;
-
-    actualReply = (char*) malloc(sizeof(char) * (COMMAND_LENGTH + 10 + replyLength)); //Allocating enough space for the entire reply
+    char* actualReply[COMMAND_LENGTH + 10 + replyLength];
 
     //Copying the reply command to the actual reply
     for(; i < COMMAND_LENGTH; i++) {
@@ -149,8 +147,6 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
     for(j = 0; j <= i; j++) {
         printf("%c", actualReply[j]);
     }
-
-    free(actualReply);
 }
 
 /**
@@ -323,13 +319,14 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     char filePath[SIZE];
     int i, j;
     struct stat fileStats;
-    char* buffer, *replyBuffer;
     int fileSize;
     int sizeRead;
     int replySize;
     char fileSizeStr[10];
     int fileSizeStrSize;
     char ok[] = "OK ";
+    int bytesLeft;
+    int totalBytes;
 
     if(!dirExists(UID)) {
         reply(retrieveReply, errorNotOKReply, replySocket, -1);
@@ -375,16 +372,26 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     sprintf(fileSizeStr, "%d", fileSize);
 
     fileSizeStrSize = strlen(fileSizeStr);
-    replySize = fileSize + 3 + fileSizeStrSize + 2; //File size + 3 chars for "OK " + size of the number as a string + 1 char for " " and another for '\n'
+    replySize = fileSize + 4 + 3 + fileSizeStrSize + 3; 
+    /*File size + 4 chars for "RRT "", + 3 chars for "OK " + size of the number as a string + 3 chars for " ", another for '\n'
+    and '\0'*/
 
-    buffer = (char*) malloc(sizeof(char) * (fileSize + 1));
-    replyBuffer = (char*) malloc(sizeof(char) * (replySize + 1));
+    char buffer[fileSize + 1];
+    char replyBuffer[replySize + 1];
 
     sizeRead = fread(buffer, sizeof(char), fileSize, file);
 
+    for(i = 0; i < COMMAND_LENGTH; i++) {
+        replyBuffer[i] = retrieveReply[i];
+    }
+
+    replyBuffer[i] = ' ';
+    i++;
+
     //Copying "OK " to the reply buffer
-    for(i = 0; i < 3; i++) {
-        replyBuffer[i] = ok[i];
+    for(j = 0; j < 3; j++) {
+        replyBuffer[i] = ok[j];
+        i++;
     }
 
     //Copying the file size to the reply buffer
@@ -404,10 +411,16 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
 
     fclose(file);
 
-    reply(retrieveReply, replyBuffer, replySocket, i);
+    replyBuffer[i] = '\n';
+    i++;
+    replyBuffer[i] = '\0';
+    i++;
 
-    free(buffer);
-    free(replyBuffer);
+    bytesLeft = i;
+    totalBytes = i;
+
+    //Sending everything in a single batch (receiver is prepared to receive small batches due to TCP division)
+    sendMessage(replySocket, replyBuffer, i);
 }
 
 void upload(char* args, Sock* replySocket, char UID[]) {
@@ -419,18 +432,13 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     int amountFiles = 0;
     FILE* file;
     char directoryName[SIZE];
+    char buffer[REPLY_SIZE];
+    int readingSize;
 
     sprintf(directoryName, "%s/%s", pathname, UID);
 
-    if(sscanf(args, "%s %d", fileName, &fileSize) != 2) {
+    if(sscanf(args, "%s %d\n", fileName, &fileSize) != 2) {
         //Something went wrong
-        reply(uploadReply, errorReply, replySocket, -1);
-        return;
-    }
-
-    //Making args point to the beggining of the data
-    if(!pointToArgs(&args) || !pointToArgs(&args)) {
-        //Not enough args
         reply(uploadReply, errorReply, replySocket, -1);
         return;
     }
@@ -469,7 +477,21 @@ void upload(char* args, Sock* replySocket, char UID[]) {
 
     file = fopen(filePath, "w");
 
-    fwrite(args, sizeof(char), fileSize, file);
+    //Reading batches of data from the socket
+    while(fileSize > 0) {
+        if(fileSize > REPLY_SIZE) {
+            readingSize = REPLY_SIZE;
+        }
+        else {
+            readingSize = fileSize;
+        }
+
+        receiveMessage(replySocket, buffer, readingSize);
+
+        fileSize -= readingSize;
+
+        fwrite(buffer, sizeof(char), readingSize, file);
+    }
 
     fclose(file);
 
@@ -564,68 +586,79 @@ void *newClientDealingThread(void* arg) {
     char UID[UID_LENGTH + 1], TID[TID_LENGTH + 1];
     int i;
     char* replyFirstWord;
+    int accumulatedBytes = 0;
 
-    int messageSize = receiveMessage(tcpUserSocket, buffer, SIZE);
-    //Received a message from the user.
+    //Reading the command
+    accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer, COMMAND_LENGTH + 1, ' ');
 
-    buffer[messageSize] = '\0';
+    if(isCommand(uploadCommand, buffer)) {
+        int accumulatedBytes = 0;
+        //The upload command must be read differently due to the arbitrary size of Data
+        accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, UID_LENGTH + 1, ' ');
+        accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, TID_LENGTH + 1, ' ');
+        accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, FNAME_LENGTH + 1, ' ');
+        accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, SIZE, ' '); //Reading Fsize
+
+        buffer[accumulatedBytes] = '\n';
+        accumulatedBytes++;
+    }
+    else {
+        //Reading a normal command with a slightly known size
+        accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, SIZE, '\n');
+    }
+
+    buffer[accumulatedBytes] = '\0';
 
     printf("Receiving message: %s", buffer);
 
-    if(pointToArgs(&args)) {
-        //The command has args
+    //The command has args
 
-        for(i = 0; i < UID_LENGTH; i++) {
-            UID[i] = args[i];
+    for(i = 0; i < UID_LENGTH; i++) {
+        UID[i] = args[i];
+    }
+
+    UID[i] = '\0';
+
+    //Making args point to the next arg
+    if(pointToArgs(&args)) {
+        
+        for(i = 0; i < TID_LENGTH; i++) {
+            TID[i] = args[i];
         }
 
-        UID[i] = '\0';
+        TID[i] = '\0';
 
-        //Making args point to the next arg
-        if(pointToArgs(&args)) {
-            
-            for(i = 0; i < TID_LENGTH; i++) {
-                TID[i] = args[i];
+        //Making args point to the next arg. It's no longer relevant if there are more args or not
+        pointToArgs(&args);
+
+        if(validate(UID, TID, args, buffer)) {
+            if(isCommand(listCommand, buffer)) {
+                list(args, tcpUserSocket, UID);
             }
-
-            TID[i] = '\0';
-
-            //Making args point to the next arg. It's no longer relevant if there are more args or not
-            pointToArgs(&args);
-
-            if(validate(UID, TID, args, buffer)) {
-                if(isCommand(listCommand, buffer)) {
-                    list(args, tcpUserSocket, UID);
-                }
-                else if(isCommand(retrieveCommand, buffer)) {
-                    retrieve(args, tcpUserSocket, UID);
-                }
-                else if(isCommand(uploadCommand, buffer)) {
-                    upload(args, tcpUserSocket, UID);
-                }
-                else if(isCommand(deleteCommand, buffer)) {
-                    deleteC(args, tcpUserSocket, UID);
-                }
-                else if(isCommand(removeCommand, buffer)) {
-                    removeC(args, tcpUserSocket, UID);
-                }
-                else if(isCommand(closeConnectionCommand, buffer)) {
-                    //Closing connection
-                    printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
-                }
+            else if(isCommand(retrieveCommand, buffer)) {
+                retrieve(args, tcpUserSocket, UID);
             }
-            else {
-                //UID TID Invalid
-                reply(getReplyForCommand(buffer), errorInvalidTIDReply, tcpUserSocket, -1);
+            else if(isCommand(uploadCommand, buffer)) {
+                upload(args, tcpUserSocket, UID);
+            }
+            else if(isCommand(deleteCommand, buffer)) {
+                deleteC(args, tcpUserSocket, UID);
+            }
+            else if(isCommand(removeCommand, buffer)) {
+                removeC(args, tcpUserSocket, UID);
+            }
+            else if(isCommand(closeConnectionCommand, buffer)) {
+                //Closing connection
+                printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
             }
         }
         else {
-            //args does not contain any more args
-            reply(getReplyForCommand(buffer), errorReply, tcpUserSocket, -1);
+            //UID TID Invalid
+            reply(getReplyForCommand(buffer), errorInvalidTIDReply, tcpUserSocket, -1);
         }
     }
     else {
-        //The command does not have args. Send error message
+        //args does not contain any more args
         reply(getReplyForCommand(buffer), errorReply, tcpUserSocket, -1);
     }
 
