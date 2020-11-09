@@ -277,7 +277,7 @@ void *getUserRequests(void *arg) {
     char *canonname = getHostIp(sfd);
     
     memset(buffer, 0, SIZE);
-    int n = receiveMessage(sfd, buffer, SIZE);
+    int n = receiveMessageUntilChar(sfd, buffer, SIZE, '\n');
     buffer[n] = '\0';
 
     printf("words: %d, %s", getWords(buffer), buffer);
