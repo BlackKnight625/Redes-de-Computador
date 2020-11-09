@@ -2,16 +2,38 @@ Tratar dos timeouts das respostas (ex: quando o FS pede ao AS para validar, tem 
 Use Threads for faster server stuff
 
 Dúvidas:
- Podemos assumir que no máximo os ficheiros têm um certo tamanho? Temos de programar tendo em conta que pode ser arbitrário?
- É possível fazer vários requests seguidos e validar os requests antigos? (We kinda already know this is not possible, porque não sabemos a qual RID corresponde o VC, just to make sure)
- É possível fazer Fops se a interação anterior não tiver sido a sua validação? (Ex: req U f1.txt; val x; req U f2.txt; val y; upload f1.txt; -> would this work?)
- Fazer exit no PD elimina o registo do user no AS? SIM OFICIAL
- É possível fazer mais do que um 1 registo no PD?
- Temos de verificar se o Fname é igual no req e upload?
- Fazer exit no User não faz log out do AS?
- É possível existirem vários Users ligados com o mesmo UID? (Aqui o problema surge quando o user faz remove (logout) porque não sabemos qual o IP do user que vai ser desconectado uma vez que é o FS que pede para fazer logout)
- Qual a resposta do AS se validar uma operação mas o user não está logado? E se o user não estiver registado?
- É possível unregistar se o user estiver logado? 
+ Q: Podemos assumir que no máximo os ficheiros têm um certo tamanho? Temos de programar tendo em conta que pode ser arbitrário?
+ A: Não, temos de ler no maximo n bytes
+
+ Q: É possível fazer vários requests seguidos e validar os requests antigos? (We kinda already know this is not possible, porque não sabemos a qual RID corresponde o VC, just to make sure)
+ A: Não é possível fazer 2 ou mais requests seguidos
+ 
+ Q: É possível fazer Fops se a interação anterior não tiver sido a sua validação? (Ex: req U f1.txt; val x; req U f2.txt; val y; upload f1.txt; -> would this work?)
+ A:  
+
+ Q: Fazer exit no PD elimina o registo do user no AS? SIM
+ A: 
+ 
+ Q: É possível fazer mais do que um 1 registo no PD?
+ A: Não, 1 PD apenas regista 1 UID
+ 
+ Q: Temos de verificar se o Fname é igual no req e upload?
+ A: FS verifica com o AS o nome do ficheiro
+ 
+ Q: Fazer exit no User não faz log out do AS?
+ A:
+ 
+ Q: É possível existirem vários Users ligados com o mesmo UID? (Aqui o problema surge quando o user faz remove (logout) porque não sabemos qual o IP do user que vai ser desconectado uma vez que é o FS que pede para fazer logout)
+ A:
+
+ Q: Qual a resposta do AS se validar uma operação mas o user não está logado? E se o user não estiver registado?
+ A:
+
+ Q: É possível unregistar se o user estiver logado? 
+ A:
+
+ Q: É possível a App user deixar fazer vários logins? Ou uma vez feito um login naquela maquina, não são aceites outros até ser feito log out?
+ A:
 
 Just existencial crisis:
  Quando o user faz remove, é o mesmo que fazer logout do AS. O que é que isto significa? O user não deverá conseguir enviar mais comandos ao AS/FS?
