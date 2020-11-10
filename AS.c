@@ -141,12 +141,10 @@ void incrNumber(char *array) {
     }
 }
 
-void *getUDPrequests(void *arg) {
+void *doUDPrequests(Sock *sfd) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char pdip[SIZE], pdport[SIZE];
-
-    Sock *sfd = (Sock *)arg;
 
     memset(buffer, 0, SIZE);
 
@@ -483,6 +481,29 @@ void *getUserRequests(void *arg) {
     return NULL;
 }
 
+void *getUDPrequests(void *arg) {
+    int counter;
+    fd_set readfds;
+    struct timeval timeout;
+    Sock *sfdUDP = (Sock*)arg;
+
+    while (TRUE) {
+        FD_ZERO(&readfds);
+        FD_SET(sfdUDP->fd, &readfds);
+
+        counter = select(sfdUDP->fd+1, &readfds, NULL, NULL, (struct timeval *)NULL);
+
+        if (counter <= 0) {
+            printf("Reached timeout.\n");
+        }
+
+        if (FD_ISSET(sfdUDP->fd, &readfds)) {
+            doUDPrequests(sfdUDP);
+        }
+    }
+    
+}
+
 void processCommands() {
     int counter, maxfd;
     fd_set readfds;
@@ -507,37 +528,15 @@ void processCommands() {
 
     pthread_t thread;
 
-    while (1) {
-        FD_ZERO(&readfds);
-        FD_SET(sfdUDP->fd, &readfds);
-        FD_SET(sfdTCP->fd, &readfds);
+    pthread_create(&thread, NULL, getUDPrequests, (void *)sfdUDP);
 
-        maxfd = sfdUDP->fd;
-        maxfd = max(maxfd, sfdTCP->fd);
-
-        //timeout.tv_sec = 5;
-        //timeout.tv_usec = 0;
-        
-        counter = select(maxfd+1, &readfds, NULL, NULL, (struct timeval *)NULL);
-        
-        if (counter <= 0) {
-            printf("Reached timeout.\n");
+    while (TRUE) {
+        Sock *newSock = acquire(sfdTCP);
+        if (newSock == NULL) {
+            printf("Unable to create Socket to deal with a client\n");
+            continue;
         }
-
-        if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            pthread_create(&thread, NULL, getUDPrequests, (void*)sfdUDP);
-        }
-
-        if (FD_ISSET(sfdTCP->fd, &readfds)) {
-            Sock *newSock = acquire(sfdTCP);
-            if (newSock == NULL) {
-                printf("Unable to create Socket to deal with a client\n");
-                continue;
-            }
-            pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
-        }
-
-        // insert other FD_ISSET conditions here
+        pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
     }
 }
 
