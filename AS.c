@@ -461,7 +461,7 @@ void *getUserRequests(void *arg) {
     // establishes a TCP connection and handles requests
     Sock *sfd = (Sock *)arg;
     char userID[UID_LENGTH+1];
-    memset(userID, 0, SIZE);
+    memset(userID, 0, UID_LENGTH+1);
 
     int res = doRequest(sfd, userID);
 
