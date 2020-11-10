@@ -505,10 +505,6 @@ void *getUDPrequests(void *arg) {
 }
 
 void processCommands() {
-    int counter, maxfd;
-    fd_set readfds;
-    struct timeval timeout;
-
     users = newUsersList();
     initNumber(newTID);
     incrNumber(newTID); // TID 0000 means failed therefore number starts at 0001
