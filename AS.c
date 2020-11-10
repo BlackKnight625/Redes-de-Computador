@@ -27,10 +27,6 @@ typedef struct list {
     User *users;
 } UsersList;
 
-enum command {
-    LOG, REQ, AUT, ERR
-};
-
 //globals
 char *asport;
 int verboseMode = FALSE;
@@ -448,8 +444,6 @@ void *getUserRequests(void *arg) {
     while (res >= 0) {
         res = doRequest(sfd, userID);
     }
-
-    printf("Finished reading User requests\n");
 
     closeSocket(sfd);
 

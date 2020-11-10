@@ -1,11 +1,3 @@
 are there any issues with locks and threads in AS?
 
 Dúvidas:
- Q: Fazer exit no User não faz log out do AS?
- A: exit faz logout ou seja fecha o socket, (remove o registo?)
-
- Q: É possível a App user deixar fazer vários logins? Ou uma vez feito um login naquela maquina, não são aceites outros até ser feito log out?
- A:
-
-Just existencial crisis:
-

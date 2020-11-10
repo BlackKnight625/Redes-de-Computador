@@ -565,7 +565,7 @@ void userRemoveCommand(){
     //closes the TCP session with FS
     closeSocket(userFSsession);
     //closes the TCP session with AS
-    closeSocket(userASsession):
+    closeSocket(userASsession);
 }
 
 
