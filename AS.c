@@ -151,6 +151,10 @@ void *getUDPrequests(void *arg) {
     memset(buffer, 0, SIZE);
 
     int n = receiveMessage(sfd, buffer, SIZE);
+    if (n == -1) {
+        fprintf(stderr, "Failed to receive message in UDP requests\n");
+        return NULL;
+    }
 
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, pdip, pdport);
     buffer[n] = '\0';
@@ -230,7 +234,11 @@ void *getUDPrequests(void *arg) {
         // command not recognized
         sprintf(buffer, "ERR\n");
     }
-    sendMessage(sfd, buffer, strlen(buffer));
+
+    if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
+        fprintf(stderr, "Unable to send message in UDPRequests\n");
+        return NULL;
+    }
 }
 
 int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
@@ -242,6 +250,10 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     }
 
     Sock *sfd = newUDPClient(user->pdip, user->pdport);
+    if (sfd == NULL) {
+        fprintf(stderr, "Falied to create a new UDP client\n");
+        return FALSE;
+    }
 
     memset(buffer, 0, SIZE);
     if (fname == NULL) {
@@ -252,13 +264,19 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     printf("sending vc: %s", buffer);
 
-    sendMessage(sfd, buffer, strlen(buffer));
+    if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
+        fprintf(stderr, "Unable to send message to PD\n");
+        return FALSE;
+    }
 
     int replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
 
     for (int i = 0; i < 5 && replySize < 0; i++) {
         printf("Retransmiting\n");
-        sendMessage(sfd, buffer, strlen(buffer));
+        if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
+            fprintf(stderr, "Unable to send message to PD\n");
+            return FALSE;
+        }
         replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
     }
 
@@ -337,6 +355,10 @@ int doRequest(Sock *sfd, char *userID) {
     
     memset(buffer, 0, SIZE);
     int n = receiveMessageUntilChar(sfd, buffer, SIZE, '\n');
+    if (n < 0) {
+        fprintf(stderr, "Unable to receive User message\n");
+        return -1;
+    }
     buffer[n] = '\0';
 
     // connection closed
@@ -429,7 +451,10 @@ int doRequest(Sock *sfd, char *userID) {
         pthread_mutex_unlock(&(user->mutex));
     }
 
-    sendMessage(sfd, buffer, strlen(buffer));
+    if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
+        fprintf(stderr, "Unable to send message to User\n");
+        return -1;
+    }
 
     return successfulLog;
 }
@@ -437,7 +462,7 @@ int doRequest(Sock *sfd, char *userID) {
 void *getUserRequests(void *arg) {
     // establishes a TCP connection and handles requests
     Sock *sfd = (Sock *)arg;
-    char userID[FNAME_LENGTH+1];
+    char userID[UID_LENGTH+1];
     memset(userID, 0, SIZE);
 
     int res = doRequest(sfd, userID);
@@ -469,7 +494,16 @@ void processCommands() {
     initNumber(newVC);
 
     Sock *sfdUDP = newUDPServer(asport);
+    if (sfdUDP == NULL) {
+        printf("Unable to create a new UDP server\n");
+        exit(1);
+    }
+    
     Sock *sfdTCP = newTCPServer(asport);
+    if (sfdTCP == NULL) {
+        printf("Unable to create a new TCP server\n");
+        exit(1);
+    }
 
     pthread_t thread;
 
@@ -496,6 +530,10 @@ void processCommands() {
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
             Sock *newSock = acquire(sfdTCP);
+            if (newSock == NULL) {
+                printf("Unable to create Socket to deal with a client\n");
+                continue;
+            }
             pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
         }
 
