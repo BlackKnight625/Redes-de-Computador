@@ -141,9 +141,14 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
     actualReply[i] = '\n';
     actualReply[i + 1] = '\0';
 
-    sendMessage(replySocket, actualReply, i + 1);
-
-    printf("Replying: ");
+    if(sendMessage(replySocket, actualReply, i + 1) == -1) {
+        //Error
+        printf("Unable to reply: ");
+    }
+    else {
+        printf("Replying: ");
+    }
+    
     for(j = 0; j <= i; j++) {
         printf("%c", actualReply[j]);
     }
@@ -155,6 +160,12 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
  */
 int validate(char* UID, char* TID, char* args, char* commandBeggining) {
     Sock* asSocket = newUDPClient(asip, asport);
+
+    if(asSocket == NULL) {
+        printf("Unable to created Socket to communicate with the AS\n");
+        return 0;
+    }
+
     char buffer[32];
     char replyBuffer[SIZE];
     char treatedReplyBuffers[5][32];
@@ -168,7 +179,11 @@ int validate(char* UID, char* TID, char* args, char* commandBeggining) {
 
     sprintf(buffer, "VLD %s %s\n", UID, TID);
 
-    sendMessage(asSocket, buffer, strlen(buffer));
+    if(sendMessage(asSocket, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the AS: %s\n", buffer);
+        closeSocket(asSocket);
+        return 0;
+    }
 
     int replySize = receiveMessageUDPWithTimeout(asSocket, replyBuffer, SIZE, 1);
 
@@ -179,7 +194,7 @@ int validate(char* UID, char* TID, char* args, char* commandBeggining) {
     }
 
     if (replySize < 0) {
-        printf("Falied to receive message from AS\n");
+        printf("Failed to receive message from AS\n");
         closeSocket(asSocket);
         return 0;
     }
@@ -432,7 +447,9 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     totalBytes = i;
 
     //Sending everything in a single batch (receiver is prepared to receive small batches due to TCP division)
-    sendMessage(replySocket, replyBuffer, i);
+    if(sendMessage(replySocket, replyBuffer, i) == -1) {
+        printf("Unable to send message containing file data\n");
+    }
 }
 
 void upload(char* args, Sock* replySocket, char UID[]) {
@@ -498,7 +515,10 @@ void upload(char* args, Sock* replySocket, char UID[]) {
             readingSize = fileSize;
         }
 
-        receiveMessage(replySocket, buffer, readingSize);
+        if(receiveMessage(replySocket, buffer, readingSize) == -1) {
+            printf("Unable to receive data\n");
+            return;
+        }
 
         fileSize -= readingSize;
 
@@ -616,6 +636,13 @@ void *newClientDealingThread(void* arg) {
     else {
         //Reading a normal command with a slightly known size
         accumulatedBytes += receiveMessageUntilChar(tcpUserSocket, buffer + accumulatedBytes, SIZE, '\n');
+    }
+
+    if(accumulatedBytes < 0) {
+        //Something went wrong
+        printf("Unable to receive message from a user\n");
+        closeSocket(tcpUserSocket);
+        return NULL;
     }
 
     buffer[accumulatedBytes] = '\0';
@@ -765,6 +792,12 @@ int main(int argc, char *argv[]) {
     while(TRUE) {
         //Waiting for a client connection
         socket = acquire(clientConnectionsSocket);
+
+        if(socket == NULL) {
+            printf("Unable to create socket that receives connections\n");
+            return 1;
+        }
+
         pthread_create(&threadID, (pthread_attr_t *) NULL, &newClientDealingThread, (void*) socket);
     }
 

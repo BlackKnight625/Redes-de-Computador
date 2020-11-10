@@ -15,6 +15,8 @@
 #define FS_PORT "59042" 
 #define pathname "USERS"
 #define LOCALHOST "127.0.0.1"
+#define LARGE_NEGATIVE_NUMER -1000000
+
 
 enum sockType { TCP, UDP };
 

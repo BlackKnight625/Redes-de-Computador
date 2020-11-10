@@ -288,14 +288,23 @@ int pointToArgs(char** commandAndArgs) {
     return 1;
 }
 
-// reads at most size bytes from sfd to buffer. stops reading after character 'end'
+/** reads at most size bytes from sfd to buffer. stops reading after character 'end'
+ * If an error occurs, returns a large negative number
+ */
 int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end) {
     char byte;
     int totalBytesRcvd = 0;
     int bytesRead;
+    int n;
 
-    if (receiveMessage(sfd, &byte, 1) == 0) {
+    n = receiveMessage(sfd, &byte, 1);
+
+    if (n == 0) {
         return totalBytesRcvd;
+    }
+    else if(n == -1) {
+        //Error occurred
+        return LARGE_NEGATIVE_NUMER;
     }
 
     sprintf(buffer+totalBytesRcvd, "%c", byte);
@@ -303,8 +312,15 @@ int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end) {
     // le do socket byte a byte
     while (buffer[totalBytesRcvd] != end) {
         totalBytesRcvd++;
-        if (receiveMessage(sfd, &byte, 1) == 0) {
+
+        n = receiveMessage(sfd, &byte, 1);
+
+        if (n == 0) {
             break; // closed from peer
+        }
+        else if(n == -1) {
+            //Error occurred
+            return LARGE_NEGATIVE_NUMER;
         }
 
         sprintf(buffer+totalBytesRcvd, "%c", byte);
