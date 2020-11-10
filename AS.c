@@ -17,6 +17,7 @@ typedef struct user {
     Map *rids; // maps a rid with a vc
     Map *r2t; // maps a rid with a tid
     struct user *next;
+    pthread_mutex_t mutex;
 } User;
 
 typedef struct list {
@@ -31,6 +32,8 @@ char newTID[TID_LENGTH+1];
 char newVC[TID_LENGTH+1];
 Map *ips;
 UsersList *users;
+pthread_rwlock_t rwlockUsersList; //pthread_rwlock_rdlock() pthread_rwlock_wrlock() pthread_rwlock_unlock()  
+pthread_rwlock_t rwlockIps;
 
 
 UsersList *newUsersList() {
@@ -40,12 +43,16 @@ UsersList *newUsersList() {
 }
 
 User *getUser(UsersList *users, char *uid) {
+    pthread_rwlock_rdlock(&rwlockUsersList);
     User *user = users->users;
     for (; user != NULL; user = user->next) {
         if (strcmp(user->uid, uid) == 0) {
+            pthread_mutex_lock(&(user->mutex));
+            pthread_rwlock_unlock(&rwlockUsersList);
             return user;
         }
     }
+    pthread_rwlock_unlock(&rwlockUsersList);
     return NULL;
 }
 
@@ -53,8 +60,11 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
     User *user = getUser(users, uid);
     // user is already in the regist
     if (user != NULL) {
+        pthread_mutex_unlock(&(user->mutex));
         return; 
     }
+
+    pthread_rwlock_wrlock(&rwlockUsersList);
 
     User *newUser = (User*)malloc(sizeof(User));
     newUser->next = NULL;
@@ -65,6 +75,7 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
     newUser->tids = newMap();
     newUser->rids = newMap();
     newUser->r2t = newMap();
+    pthread_mutex_init(&(newUser->mutex), NULL);
 
     user = users->users;
     if (users->size == 0) {
@@ -76,9 +87,13 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
         user->next = newUser;
     }
     users->size++;
+
+    pthread_rwlock_unlock(&rwlockUsersList);
 }
 
 void removeUser(UsersList *users, char *uid) {
+    pthread_rwlock_wrlock(&rwlockUsersList);
+
     User *user = users->users;
     User *last = user;
     while (user != NULL) {
@@ -88,6 +103,7 @@ void removeUser(UsersList *users, char *uid) {
             continue;
         } else {
             last->next = user->next;
+            pthread_mutex_destroy(&(user->mutex));
             delete(user->tids);
             delete(user->rids);
             delete(user->r2t);
@@ -95,6 +111,7 @@ void removeUser(UsersList *users, char *uid) {
             break;
         }
     }
+    pthread_rwlock_unlock(&rwlockUsersList);
 }
 
 void initNumber(char *array) {
@@ -146,14 +163,18 @@ void *getUDPrequests(void *arg) {
     } else if (words == 3 && strcmp(op, "UNR") == 0) {
         // checks if user exists and password is correct
         User *user;
-        if ((user = getUser(users, uid)) != NULL && strcmp(user->pw, pw) == 0) {
-            sprintf(buffer, "RUN OK\n");
-            removeUser(users, uid);
+        if ((user = getUser(users, uid)) != NULL) {
+            if (strcmp(user->pw, pw) == 0) {
+                sprintf(buffer, "RUN OK\n");
+                removeUser(users, uid);
+            }
+            pthread_mutex_unlock(&(user->mutex));
         } else {
             sprintf(buffer, "RUN NOK\n");
         }
     } else if (words == 3 && strcmp(op, "VLD") == 0) {
         User *user = getUser(users, uid);
+
         char *fop;
         if (user != NULL) {
             fop = get(user->tids, pw);
@@ -165,6 +186,7 @@ void *getUDPrequests(void *arg) {
             // if operation is remove
             // user must be logged out
             if (strcmp(fop, "X") == 0) {
+                pthread_rwlock_wrlock(&rwlockIps);
                 Element *element = ips->elements;
                 for (; element != NULL; element = element->next) {
                     if (strcmp(element->value, uid) == 0) {
@@ -175,12 +197,18 @@ void *getUDPrequests(void *arg) {
                     printf("user %s logged out\n", element->value);
                     removeElement(ips, element->key);
                 }
+                pthread_rwlock_unlock(&rwlockIps);
             }
 
             removeElement(user->tids, pw);
-        } else {
+        } 
+
+        else {
             sprintf(buffer, "CNF %s %s E\n", uid, pw);
         }
+
+        pthread_mutex_unlock(&(user->mutex));
+
     } else {
         // command not recognized
         sprintf(buffer, "ERR\n");
@@ -284,7 +312,10 @@ void *getUserRequests(void *arg) {
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
 
     User *user = getUser(users, uid);
+    
+    pthread_rwlock_rdlock(&rwlockIps);
     char *userID = get(ips, canonname);
+    pthread_rwlock_unlock(&rwlockIps);
 
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
@@ -293,7 +324,9 @@ void *getUserRequests(void *arg) {
             sprintf(buffer, "RLO OK\n");
             // create a new canonname
             if (userID == NULL) {
+                pthread_rwlock_wrlock(&rwlockIps);
                 put(ips, canonname, uid);
+                pthread_rwlock_unlock(&rwlockIps);
             }
             // if canonname exists and User is changing account (uid) 
             else if (strcmp(userID, uid) != 0){
@@ -361,6 +394,11 @@ void *getUserRequests(void *arg) {
             sprintf(buffer, "RAU 0000\n");
         }
     }
+
+    if (user != NULL) {
+        pthread_mutex_unlock(&(user->mutex));
+    }
+
     sendMessage(sfd, buffer, strlen(buffer));
 
     closeSocket(sfd);
@@ -429,6 +467,9 @@ int main(int argc, char *argv[]) {
     }
 
     if ((asport = get(myMap, "-p")) == NULL) { asport = AS_PORT; }
+
+    pthread_rwlock_init(&rwlockUsersList, NULL);
+    pthread_rwlock_init(&rwlockIps, NULL);
 
     processCommands();
 

@@ -1,33 +1,15 @@
 Tratar dos timeouts das respostas (ex: quando o FS pede ao AS para validar, tem de retornar 0 passado um bocado)
-Use Threads for faster server stuff
+Threads?
+O PD não deve deixar registar 2 users
+Um User não deve poder fazer login numa conta que já esteja logada
+Devolver erros no receiveMessage, sendMessage, newClient, newServer, receiveMessageUntilChar, closeSocket
 
 Dúvidas:
- Q: Podemos assumir que no máximo os ficheiros têm um certo tamanho? Temos de programar tendo em conta que pode ser arbitrário?
- A: Não, temos de ler no maximo n bytes
-
- Q: É possível fazer vários requests seguidos e validar os requests antigos? (We kinda already know this is not possible, porque não sabemos a qual RID corresponde o VC, just to make sure)
- A: Não é possível fazer 2 ou mais requests seguidos
- 
- Q: É possível fazer Fops se a interação anterior não tiver sido a sua validação? (Ex: req U f1.txt; val x; req U f2.txt; val y; upload f1.txt; -> would this work?)
- A: Não
-
  Q: Fazer exit no PD elimina o registo do user no AS?
  A: Não
  
- Q: É possível fazer mais do que um 1 registo no PD?
- A: Não, 1 PD apenas regista 1 UID
- 
- Q: Temos de verificar se o Fname é igual no req e upload?
- A: FS verifica com o AS o nome do ficheiro
- 
  Q: Fazer exit no User não faz log out do AS?
- A: exit faz logout ou seja fecha o socket, (remove tira o registo?)
- 
- Q: É possível existirem vários Users ligados com o mesmo UID? (Aqui o problema surge quando o user faz remove (logout) porque não sabemos qual o IP do user que vai ser desconectado uma vez que é o FS que pede para fazer logout)
- A: Não
-
- Q: Qual a resposta do AS se validar uma operação mas o user não está logado? E se o user não estiver registado?
- A:
+ A: exit faz logout ou seja fecha o socket, (remove o registo?)
 
  Q: É possível unregistar se o user estiver logado? 
  A:

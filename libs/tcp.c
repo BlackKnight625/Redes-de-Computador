@@ -56,7 +56,7 @@ int sendMessageTCP(int sfd, char *buffer, int size) {
     int nwritten;
     int nleft = size;
     int totalwritten = 0;
-    while (nleft > 0) {   
+    while (nleft > 0) {
         nwritten = write(sfd,buffer,size);
         if(nwritten <= 0) {
             fprintf(stderr, "failed to write\n");
@@ -70,9 +70,6 @@ int sendMessageTCP(int sfd, char *buffer, int size) {
 }
 
 int receiveMessageTCP(int sfd, char *buffer, int size) {
-    printf("Going to read from socket. Size: %d\n", size);
-    fflush(stdout);
-
     int bytesRead;
     int nleft = size;
     while(nleft > 0) { 
@@ -86,9 +83,6 @@ int receiveMessageTCP(int sfd, char *buffer, int size) {
         nleft -= bytesRead;
         buffer += bytesRead;
     }
-
-    printf("Done reading bytes\n");
-    fflush(stdout);
 
     return size-nleft;
 }

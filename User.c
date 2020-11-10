@@ -173,7 +173,7 @@ void userValidatesVC(){
 
 
 void userRetrieveCommand(){
-    char buffer[SIZE];
+    char buffer[REPLY_SIZE];
     FILE *fp;
     int readingSize;
 
@@ -185,16 +185,19 @@ void userRetrieveCommand(){
     sendMessage(userFSsession, buffer, strlen(buffer));
 
     //RRT status [Fsize data]
-    int n= receiveMessage(userFSsession, buffer, SIZE);
-    buffer[n]='\0';
+    int nread = 0;
+    for (int i = 0; i < 2; i++) {
+        nread += receiveMessageUntilChar(userFSsession, buffer + nread, SIZE, ' ');
+    }
+    buffer[nread] = '\0';
 
-    sscanf(buffer, "RRT %s %d", status, &Fsize);
+    sscanf(buffer, "RRT %s", status);
 
     if(strcmp(status, "OK")==0){
-        data = buffer;
-        for (int i = 0; i < 3; i++) {
-            pointToArgs(&data);
-        }
+
+        nread += receiveMessageUntilChar(userFSsession, buffer + nread, SIZE, ' '); // reads Fsize
+        sscanf(buffer, "RRT OK %d", &Fsize);
+
         printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
 
         //download file
@@ -213,7 +216,7 @@ void userRetrieveCommand(){
 
             Fsize -= readingSize;
 
-            fwrite(data, sizeof(char), readingSize, fp);
+            fwrite(buffer, sizeof(char), readingSize, fp);
         }
 
         fclose(fp);
@@ -260,8 +263,10 @@ void userUploadCommand(){
     fread(data, sizeof(char), Fsize, f);
 
     //UPL UID TID Fname Fsize data
-    sprintf(buffer, "UPL %s %s %s %d %s\n", UID, TID, Fname, Fsize, data);
+    sprintf(buffer, "UPL %s %s %s %d ", UID, TID, Fname, Fsize);
     sendMessage(userFSsession, buffer, strlen(buffer));
+    sendMessage(userFSsession, data, Fsize);
+    sendMessage(userFSsession, "\n", 1);
 
     //RUP status
     int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
