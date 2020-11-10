@@ -13,6 +13,9 @@ typedef struct user {
     char pw[PASS_LENGTH+1];
     char pdip[41];
     char pdport[6];
+    int isOn;
+    int isLogged;
+    int fd;
     Map *tids; // maps a tid with a fop
     Map *rids; // maps a rid with a vc
     Map *r2t; // maps a rid with a tid
@@ -25,15 +28,17 @@ typedef struct list {
     User *users;
 } UsersList;
 
+enum command {
+    LOG, REQ, AUT, ERR
+};
+
 //globals
 char *asport;
 int verboseMode = FALSE;
 char newTID[TID_LENGTH+1];
 char newVC[TID_LENGTH+1];
-Map *ips;
 UsersList *users;
 pthread_rwlock_t rwlockUsersList; //pthread_rwlock_rdlock() pthread_rwlock_wrlock() pthread_rwlock_unlock()  
-pthread_rwlock_t rwlockIps;
 
 
 UsersList *newUsersList() {
@@ -76,6 +81,8 @@ void addUser(UsersList *users, char *uid, char *pw, char *pdip, char *pdport) {
     newUser->rids = newMap();
     newUser->r2t = newMap();
     pthread_mutex_init(&(newUser->mutex), NULL);
+    newUser->isOn = TRUE;
+    newUser->isLogged = FALSE;
 
     user = users->users;
     if (users->size == 0) {
@@ -153,8 +160,20 @@ void *getUDPrequests(void *arg) {
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words == 5 && strcmp(op, "REG") == 0) {
+        // checks if this PD process already registered some user before
+        int isRegistered = FALSE;
+        pthread_rwlock_rdlock(&rwlockUsersList);
+        User *user = users->users;
+        while (user != NULL) {
+            if (strcmp(user->pdip, pdip) == 0 && strcmp(user->pdport, pdport) == 0) {
+                isRegistered = TRUE;
+                break;
+            }
+        }
+        pthread_rwlock_unlock(&rwlockUsersList);
+
         // checks if user id and password are valid
-        if (validUID(uid) && validPASS(pw)) {
+        if (!isRegistered && validUID(uid) && validPASS(pw)) {
             sprintf(buffer, "RRG OK\n");
             addUser(users, uid, pw, pdip, pdport);
         } else {
@@ -166,7 +185,9 @@ void *getUDPrequests(void *arg) {
         if ((user = getUser(users, uid)) != NULL) {
             if (strcmp(user->pw, pw) == 0) {
                 sprintf(buffer, "RUN OK\n");
-                removeUser(users, uid);
+                memset(user->pdip, 0, 41);
+                memset(user->pdport, 0, 6);
+                user->isOn = FALSE;
             }
             pthread_mutex_unlock(&(user->mutex));
         } else {
@@ -186,21 +207,15 @@ void *getUDPrequests(void *arg) {
             // if operation is remove
             // user must be logged out
             if (strcmp(fop, "X") == 0) {
-                pthread_rwlock_wrlock(&rwlockIps);
-                Element *element = ips->elements;
-                for (; element != NULL; element = element->next) {
-                    if (strcmp(element->value, uid) == 0) {
-                        break;
-                    }
-                }
-                if (element != NULL) {
-                    printf("user %s logged out\n", element->value);
-                    removeElement(ips, element->key);
-                }
-                pthread_rwlock_unlock(&rwlockIps);
+                user->isLogged = FALSE;
+                write(user->fd, "X\n" , 2);
             }
 
-            removeElement(user->tids, pw);
+            // only removes tid if tid is different from the last one
+            Element *oldTID = user->tids->elements;
+            if (oldTID != NULL && strcmp(pw, oldTID->key) != 0) {
+                removeElement(user->tids, oldTID->key);
+            }
         } 
 
         else {
@@ -221,6 +236,11 @@ void *getUDPrequests(void *arg) {
 int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], status[4];
+
+    if (!user->isOn) {
+        return FALSE; // could not validate request
+    }
+
     Sock *sfd = newUDPClient(user->pdip, user->pdport);
 
     memset(buffer, 0, SIZE);
@@ -234,8 +254,21 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     sendMessage(sfd, buffer, strlen(buffer));
 
-    int n = receiveMessage(sfd, buffer, SIZE);
-    buffer[n] = '\0';
+    int replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
+
+    for (int i = 0; i < 5 && replySize < 0; i++) {
+        printf("Retransmiting\n");
+        sendMessage(sfd, buffer, strlen(buffer));
+        replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
+    }
+
+    if (replySize < 0) {
+        printf("Falied to receive message from PD\n");
+        closeSocket(sfd);
+        return FALSE;
+    }
+
+    buffer[replySize] = '\0';
 
     closeSocket(sfd);
 
@@ -294,51 +327,42 @@ char *getHostIp(Sock *sfd) {
     return ip;
 }
 
-// need to protect ips e users in case different threads go zum zum
-// FIX ME
-void *getUserRequests(void *arg) {
+
+// returns 1 after a successful login
+int doRequest(Sock *sfd, char *userID) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char vc[VALIDATION_CODE_LENGTH+1], fname[FNAME_LENGTH+1];
-
-    // establishes a TCP connection and handles requests
-    Sock *sfd = (Sock *)arg;
-
-    char *canonname = getHostIp(sfd);
+    int successfulLog = FALSE;
     
     memset(buffer, 0, SIZE);
     int n = receiveMessageUntilChar(sfd, buffer, SIZE, '\n');
     buffer[n] = '\0';
 
+    // connection closed
+    if (n == 0) {
+        User *user = getUser(users, userID);
+        if (user != NULL) {
+            user->isLogged = FALSE;
+            pthread_mutex_unlock(&user->mutex);
+        }
+        return -1;
+    }
+
     printf("words: %d, %s", getWords(buffer), buffer);
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
 
     User *user = getUser(users, uid);
-    
-    pthread_rwlock_rdlock(&rwlockIps);
-    char *userID = get(ips, canonname);
-    pthread_rwlock_unlock(&rwlockIps);
 
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words == 3 && strcmp(op, "LOG") == 0) {
-        if (user != NULL && strcmp(user->pw, pw) == 0) {
+        if (user != NULL && !user->isLogged && strcmp(user->pw, pw) == 0) {
             sprintf(buffer, "RLO OK\n");
-            // create a new canonname
-            if (userID == NULL) {
-                pthread_rwlock_wrlock(&rwlockIps);
-                put(ips, canonname, uid);
-                pthread_rwlock_unlock(&rwlockIps);
-            }
-            // if canonname exists and User is changing account (uid) 
-            else if (strcmp(userID, uid) != 0){
-                int oldSize = strlen(userID);
-                int newSize = strlen(uid);
-                if (newSize > oldSize) {
-                    userID = realloc(userID, sizeof(char)*newSize);
-                }
-                strcpy(userID, uid);
-            }
+            user->isLogged = TRUE;
+            strcpy(userID, uid);
+            successfulLog = TRUE;
+            user->fd = sfd->fd;
         } else {
             sprintf(buffer, "RLO NOK\n");
         }
@@ -351,7 +375,7 @@ void *getUserRequests(void *arg) {
             sprintf(buffer, "RRQ EUSER\n");
         }
         // if User is not logged in
-        else if (userID == NULL) {
+        else if (!user->isLogged) {
             sprintf(buffer, "RRQ ELOG\n");
         }
         // if User is logged in but sent a wrong UID
@@ -395,6 +419,10 @@ void *getUserRequests(void *arg) {
         } else {
             sprintf(buffer, "RAU 0000\n");
         }
+    } else if (words == 1 && strcmp(op, "X") == 0) {
+        return -1;
+    } else {
+        sprintf(buffer, "ERR\n");
     }
 
     if (user != NULL) {
@@ -403,9 +431,31 @@ void *getUserRequests(void *arg) {
 
     sendMessage(sfd, buffer, strlen(buffer));
 
+    return successfulLog;
+}
+
+void *getUserRequests(void *arg) {
+    // establishes a TCP connection and handles requests
+    Sock *sfd = (Sock *)arg;
+    char userID[FNAME_LENGTH+1];
+    memset(userID, 0, SIZE);
+
+    int res = doRequest(sfd, userID);
+
+    // either error or user didnt login 
+    if (res <= 0) {
+        closeSocket(sfd);
+        return NULL;
+    }
+
+    // while connection is up
+    while (res >= 0) {
+        res = doRequest(sfd, userID);
+    }
+
     closeSocket(sfd);
 
-    free(canonname);
+    return NULL;
 }
 
 void processCommands() {
@@ -413,16 +463,15 @@ void processCommands() {
     fd_set readfds;
     struct timeval timeout;
 
-
     users = newUsersList();
     initNumber(newTID);
     incrNumber(newTID); // TID 0000 means failed therefore number starts at 0001
     initNumber(newVC);
 
-    ips = newMap();
-
     Sock *sfdUDP = newUDPServer(asport);
     Sock *sfdTCP = newTCPServer(asport);
+
+    pthread_t thread;
 
     while (1) {
         FD_ZERO(&readfds);
@@ -442,13 +491,11 @@ void processCommands() {
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            pthread_t thread;
             pthread_create(&thread, NULL, getUDPrequests, (void*)sfdUDP);
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
             Sock *newSock = acquire(sfdTCP);
-            pthread_t thread;
             pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
         }
 
@@ -471,7 +518,6 @@ int main(int argc, char *argv[]) {
     if ((asport = get(myMap, "-p")) == NULL) { asport = AS_PORT; }
 
     pthread_rwlock_init(&rwlockUsersList, NULL);
-    pthread_rwlock_init(&rwlockIps, NULL);
 
     processCommands();
 

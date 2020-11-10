@@ -1,13 +1,7 @@
-AS-FS little issue
-Threads?
-O PD não deve deixar registar 2 users
+are there any issues with locks and threads in AS?
 Um User não deve poder fazer login numa conta que já esteja logada
-Devolver erros no receiveMessage, sendMessage, newClient, newServer, receiveMessageUntilChar, closeSocket
 
 Dúvidas:
- Q: Fazer exit no PD elimina o registo do user no AS?
- A: Não
- 
  Q: Fazer exit no User não faz log out do AS?
  A: exit faz logout ou seja fecha o socket, (remove o registo?)
 
@@ -18,4 +12,4 @@ Dúvidas:
  A:
 
 Just existencial crisis:
- Quando o user faz remove, é o mesmo que fazer logout do AS. O que é que isto significa? O user não deverá conseguir enviar mais comandos ao AS/FS?
+
