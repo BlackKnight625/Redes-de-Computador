@@ -30,6 +30,9 @@ char status[6];
 int Fsize=0;
 char *data;
 
+//TCP session with the AS
+Sock *userASsession;
+
 
 //Commands
 
@@ -84,9 +87,6 @@ int getNDigits(int n){
 void userLoginCommand(){
     char buffer[SIZE];
 
-    //user establishes a TCP session with the AS
-    Sock *userASsession = newTCPClient(asip, asport);
-
     if(userASsession == NULL) {
         printf("Unable to create Socket to communicate with the AS\n");
         return;
@@ -96,6 +96,7 @@ void userLoginCommand(){
     sprintf(buffer, "LOG %s %s\n", UID, pass);
     if(sendMessage(userASsession, buffer, strlen(buffer)) == 1) {
         printf("Unable to send message to the AS\n");
+        //closes the TCP session
         closeSocket(userASsession);
         return;
     }
@@ -105,6 +106,7 @@ void userLoginCommand(){
 
     if(n < 0) {
         printf("Unable to receive message from AS. Login failed.\n");
+        //closes the TCP session
         closeSocket(userASsession);
         return;
     }
@@ -119,9 +121,6 @@ void userLoginCommand(){
         UID[0]='\0';
         pass[0]='\0';
     }
-    
-    //closes the TCP session
-    closeSocket(userASsession);
 }
 
 
@@ -130,9 +129,6 @@ void userRequestCommand(){
     int randomID=0;
     randomID = getRandomNumber(0, 9999);
     integerToChar(randomID, requestID);
-
-    //user establishes a TCP session with the AS
-    Sock *userASsession = newTCPClient(asip, asport);
 
     if(userASsession == NULL) {
         printf("Unable to create Socket to communicate with the AS\n");
@@ -143,6 +139,7 @@ void userRequestCommand(){
     if ( (strcmp(Fop, "R") ==0) || (strcmp(Fop, "U") ==0) || (strcmp(Fop, "D") ==0) ){
         sprintf(buffer, "REQ %s %s %s %s\n", UID, requestID, Fop, Fname); 
         if(sendMessage(userASsession, buffer, strlen(buffer)) == -1) {
+            //closes the TCP session
             closeSocket(userASsession);
             printf("Unable to send message to the AS\n");
             return;
@@ -151,6 +148,7 @@ void userRequestCommand(){
     else{
         sprintf(buffer, "REQ %s %s %s\n", UID, requestID, Fop);
         if(sendMessage(userASsession, buffer, strlen(buffer)) == -1) {
+            //closes the TCP session
             closeSocket(userASsession);
             printf("Unable to send message to the AS\n");
             return;
@@ -169,9 +167,6 @@ void userRequestCommand(){
     buffer[n]='\0'; 
 
     printf("%s", buffer);
-
-    //closes the TCP session
-    closeSocket(userASsession);
 }
 
 
@@ -179,9 +174,6 @@ void userValidatesVC(){
     char buffer[SIZE];
     char arg[4];
     int i=0;
-
-    //user establishes a TCP session with the AS
-    Sock *userASsession = newTCPClient(asip, asport);
 
     if(userASsession == NULL) {
         printf("Unable to create Socket to communicate with the AS\n");
@@ -192,6 +184,7 @@ void userValidatesVC(){
     sprintf(buffer, "AUT %s %s %s\n", UID, requestID, VC);
     if(sendMessage(userASsession, buffer, strlen(buffer)) == -1) {
         printf("Unable to send message to the AS\n");
+        //closes the TCP session
         closeSocket(userASsession);
         return;
     }
@@ -201,6 +194,7 @@ void userValidatesVC(){
 
     if(n < 0) {
         printf("Unable to receive message from the AS. Authentication failed.\n");
+        //closes the TCP session
         closeSocket(userASsession);
         return;
     }
@@ -218,9 +212,6 @@ void userValidatesVC(){
     else{
         printf("Authenticated! (TID=%s)\n", TID);
     }
-    
-    //closes the TCP session
-    closeSocket(userASsession);
 }
 
 
@@ -577,6 +568,7 @@ void userRemoveCommand(){
 
 
 void userExitCommand(){
+    closeSocket(userASsession);
     delete(myMap);
     exit(0);
 }
@@ -718,5 +710,13 @@ int main(int argc, char *argv[]) {
             return 0;
         }
     }
+
+    //user establishes a TCP session with the AS
+    userASsession = newTCPClient(asip, asport);
+
+    if (userASsession == NULL) {
+        fprintf(stderr, "Unable to connect to the AS...ups\n");
+    }
+
     userProcess();
 }
