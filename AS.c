@@ -461,7 +461,7 @@ void *getUserRequests(void *arg) {
     // establishes a TCP connection and handles requests
     Sock *sfd = (Sock *)arg;
     char userID[UID_LENGTH+1];
-    memset(userID, 0, SIZE);
+    memset(userID, 0, UID_LENGTH+1);
 
     int res = doRequest(sfd, userID);
 
@@ -505,10 +505,6 @@ void *getUDPrequests(void *arg) {
 }
 
 void processCommands() {
-    int counter, maxfd;
-    fd_set readfds;
-    struct timeval timeout;
-
     users = newUsersList();
     initNumber(newTID);
     incrNumber(newTID); // TID 0000 means failed therefore number starts at 0001
