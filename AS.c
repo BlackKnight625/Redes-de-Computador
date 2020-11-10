@@ -247,7 +247,7 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     Sock *sfd = newUDPClient(user->pdip, user->pdport);
     if (sfd == NULL) {
-        fprintf(stderr, "Falied to create a new UDP client\n");
+        fprintf(stderr, "Failed to create a new UDP client\n");
         return FALSE;
     }
 
@@ -262,6 +262,7 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
         fprintf(stderr, "Unable to send message to PD\n");
+        closeSocket(sfd);
         return FALSE;
     }
 
@@ -271,13 +272,14 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
         printf("Retransmiting\n");
         if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
             fprintf(stderr, "Unable to send message to PD\n");
+            closeSocket(sfd);
             return FALSE;
         }
         replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
     }
 
     if (replySize < 0) {
-        printf("Falied to receive message from PD\n");
+        printf("Failed to receive message from PD\n");
         closeSocket(sfd);
         return FALSE;
     }
@@ -323,22 +325,6 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     } else {
         return FALSE;
     }  
-}
-
-char *getHostIp(Sock *sfd) {
-    char ip_addr[41];
-    socklen_t addrlen;
-    struct sockaddr_in addr;
-    addrlen = sizeof(addr);
-    if (getpeername(sfd->fd, (struct sockaddr *) &addr, &addrlen) != 0) {
-        fprintf(stderr, "unable to get peer name\n");
-        return NULL;
-    }
-
-    strcpy(ip_addr, inet_ntoa(addr.sin_addr));
-    char *ip = (char*)malloc(sizeof(char)*(strlen(ip_addr)+1));
-    strcpy(ip, ip_addr);
-    return ip;
 }
 
 
@@ -483,7 +469,7 @@ void *getUDPrequests(void *arg) {
         counter = select(sfdUDP->fd+1, &readfds, NULL, NULL, (struct timeval *)NULL);
 
         if (counter <= 0) {
-            printf("Reached timeout.\n");
+            printf("Unable to receive message in the UDP Socket\n");
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
