@@ -15,7 +15,6 @@ typedef struct user {
     char pdport[6];
     int isOn;
     int isLogged;
-    int fd;
     Map *tids; // maps a tid with a fop
     Map *rids; // maps a rid with a vc
     Map *r2t; // maps a rid with a tid
@@ -210,7 +209,6 @@ void *doUDPrequests(Sock *sfd) {
             // user must be logged out
             if (strcmp(fop, "X") == 0) {
                 user->isLogged = FALSE;
-                write(user->fd, "X\n" , 2);
             }
 
             // only removes tid if tid is different from the last one
@@ -380,7 +378,6 @@ int doRequest(Sock *sfd, char *userID) {
             sprintf(buffer, "RLO OK\n");
             user->isLogged = TRUE;
             strcpy(userID, uid);
-            user->fd = sfd->fd;
         } else {
             sprintf(buffer, "RLO NOK\n");
         }
@@ -437,8 +434,6 @@ int doRequest(Sock *sfd, char *userID) {
         } else {
             sprintf(buffer, "RAU 0000\n");
         }
-    } else if (words == 1 && strcmp(op, "X") == 0) {
-        return -1;
     } else {
         sprintf(buffer, "ERR\n");
     }
@@ -467,6 +462,8 @@ void *getUserRequests(void *arg) {
     while (res >= 0) {
         res = doRequest(sfd, userID);
     }
+
+    printf("Finished reading User requests\n");
 
     closeSocket(sfd);
 
