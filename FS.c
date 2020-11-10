@@ -801,8 +801,7 @@ int main(int argc, char *argv[]) {
 
         if(socket == NULL) {
             printf("Unable to create Socket to deal with a client\n");
-            end();
-            return 1;
+            continue;
         }
 
         pthread_create(&threadID, (pthread_attr_t *) NULL, &newClientDealingThread, (void*) socket);

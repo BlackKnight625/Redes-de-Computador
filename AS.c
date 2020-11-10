@@ -480,6 +480,9 @@ void *getUserRequests(void *arg) {
 
     closeSocket(sfd);
 
+    printf("Closed socket. Res: %d\n", res);
+    fflush(stdout);
+
     return NULL;
 }
 
@@ -520,12 +523,17 @@ void processCommands() {
         
         counter = select(maxfd+1, &readfds, NULL, NULL, (struct timeval *)NULL);
         
+        printf("Counter: %d\n", counter);
+        fflush(stdout);
+
         if (counter <= 0) {
             printf("Reached timeout.\n");
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
-            pthread_create(&thread, NULL, getUDPrequests, (void*)sfdUDP);
+            pthread_create(&thread, (pthread_attr_t *) NULL, &getUDPrequests, (void*)sfdUDP);
+            printf("Created thread for UDP\n");
+            fflush(stdout);
         }
 
         if (FD_ISSET(sfdTCP->fd, &readfds)) {
@@ -534,8 +542,13 @@ void processCommands() {
                 printf("Unable to create Socket to deal with a client\n");
                 continue;
             }
-            pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
+            pthread_create(&thread, (pthread_attr_t *) NULL, &getUserRequests, (void*)newSock);
+            printf("Created thread for TPC\n");
+            fflush(stdout);
         }
+
+        printf("Created thread %ld\n", thread);
+        fflush(stdout);
 
         // insert other FD_ISSET conditions here
     }
