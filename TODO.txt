@@ -1,4 +1,4 @@
-Tratar dos timeouts das respostas (ex: quando o FS pede ao AS para validar, tem de retornar 0 passado um bocado)
+AS-FS little issue
 Threads?
 O PD não deve deixar registar 2 users
 Um User não deve poder fazer login numa conta que já esteja logada

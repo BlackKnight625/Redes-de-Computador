@@ -170,7 +170,19 @@ int validate(char* UID, char* TID, char* args, char* commandBeggining) {
 
     sendMessage(asSocket, buffer, strlen(buffer));
 
-    int replySize = receiveMessage(asSocket, replyBuffer, SIZE);
+    int replySize = receiveMessageUDPWithTimeout(asSocket, replyBuffer, SIZE, 1);
+
+    for (int i = 0; i < 5 && replySize < 0; i++) {
+        printf("Retransmiting\n");
+        sendMessage(asSocket, buffer, strlen(buffer));
+        replySize = receiveMessageUDPWithTimeout(asSocket, replyBuffer, SIZE, 1);
+    }
+
+    if (replySize < 0) {
+        printf("Falied to receive message from AS\n");
+        closeSocket(asSocket);
+        return 0;
+    }
 
     //Deleting the '\n'
     replyBuffer[replySize - 1] = '\0';

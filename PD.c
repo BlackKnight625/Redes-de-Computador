@@ -39,8 +39,21 @@ int registerUser(char *uid, char *pw) {
     sprintf(buffer, "REG %s %s %s %s\n", uid, pw, pdip, pdport);
     sendMessage(sfd, buffer, strlen(buffer));
 
-    int n = receiveMessage(sfd, buffer, SIZE);
-    buffer[n] = '\0';
+    int replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
+
+    for (int i = 0; i < 5 && replySize < 0; i++) {
+        printf("Retransmiting\n");
+        sendMessage(sfd, buffer, strlen(buffer));
+        replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
+    }
+
+    if (replySize < 0) {
+        printf("Falied to receive message from AS\n");
+        closeSocket(sfd);
+        return FALSE;
+    }
+
+    buffer[replySize] = '\0';
     printf("%s", buffer);
 
     closeSocket(sfd);
@@ -63,8 +76,21 @@ int unregisterUser(User *user) {
     sprintf(buffer, "UNR %s %s\n", user->uid, user->pw);
     sendMessage(sfd, buffer, strlen(buffer));
 
-    int n = receiveMessage(sfd, buffer, SIZE);
-    buffer[n] = '\0';
+    int replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
+
+    for (int i = 0; i < 5 && replySize < 0; i++) {
+        printf("Retransmiting\n");
+        sendMessage(sfd, buffer, strlen(buffer));
+        replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
+    }
+
+    if (replySize < 0) {
+        printf("Falied to receive message from AS\n");
+        closeSocket(sfd);
+        return FALSE;
+    }
+
+    buffer[replySize] = '\0';
     printf("%s", buffer);
 
     closeSocket(sfd);
