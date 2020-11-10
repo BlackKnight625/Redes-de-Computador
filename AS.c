@@ -349,7 +349,6 @@ int doRequest(Sock *sfd, char *userID) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char vc[VALIDATION_CODE_LENGTH+1], fname[FNAME_LENGTH+1];
-    int successfulLog = FALSE;
     
     memset(buffer, 0, SIZE);
     int n = receiveMessageUntilChar(sfd, buffer, SIZE, '\n');
@@ -381,7 +380,6 @@ int doRequest(Sock *sfd, char *userID) {
             sprintf(buffer, "RLO OK\n");
             user->isLogged = TRUE;
             strcpy(userID, uid);
-            successfulLog = TRUE;
             user->fd = sfd->fd;
         } else {
             sprintf(buffer, "RLO NOK\n");
@@ -454,7 +452,7 @@ int doRequest(Sock *sfd, char *userID) {
         return -1;
     }
 
-    return successfulLog;
+    return 0;
 }
 
 void *getUserRequests(void *arg) {
@@ -464,12 +462,6 @@ void *getUserRequests(void *arg) {
     memset(userID, 0, UID_LENGTH+1);
 
     int res = doRequest(sfd, userID);
-
-    // either error or user didnt login 
-    if (res <= 0) {
-        closeSocket(sfd);
-        return NULL;
-    }
 
     // while connection is up
     while (res >= 0) {
