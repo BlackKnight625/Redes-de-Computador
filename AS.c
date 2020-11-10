@@ -327,22 +327,6 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     }  
 }
 
-char *getHostIp(Sock *sfd) {
-    char ip_addr[41];
-    socklen_t addrlen;
-    struct sockaddr_in addr;
-    addrlen = sizeof(addr);
-    if (getpeername(sfd->fd, (struct sockaddr *) &addr, &addrlen) != 0) {
-        fprintf(stderr, "unable to get peer name\n");
-        return NULL;
-    }
-
-    strcpy(ip_addr, inet_ntoa(addr.sin_addr));
-    char *ip = (char*)malloc(sizeof(char)*(strlen(ip_addr)+1));
-    strcpy(ip, ip_addr);
-    return ip;
-}
-
 
 // returns 1 after a successful login
 int doRequest(Sock *sfd, char *userID) {
@@ -494,7 +478,7 @@ void *getUDPrequests(void *arg) {
         counter = select(sfdUDP->fd+1, &readfds, NULL, NULL, (struct timeval *)NULL);
 
         if (counter <= 0) {
-            printf("Reached timeout.\n");
+            printf("Unable to receive message in the UDP Socket\n");
         }
 
         if (FD_ISSET(sfdUDP->fd, &readfds)) {
