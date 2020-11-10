@@ -175,7 +175,7 @@ void *getUDPrequests(void *arg) {
     } else if (words == 3 && strcmp(op, "VLD") == 0) {
         User *user = getUser(users, uid);
 
-        char *fop;
+        char *fop = NULL;
         if (user != NULL) {
             fop = get(user->tids, pw);
         }
@@ -207,7 +207,9 @@ void *getUDPrequests(void *arg) {
             sprintf(buffer, "CNF %s %s E\n", uid, pw);
         }
 
-        pthread_mutex_unlock(&(user->mutex));
+        if (user != NULL) {
+            pthread_mutex_unlock(&(user->mutex));
+        }
 
     } else {
         // command not recognized

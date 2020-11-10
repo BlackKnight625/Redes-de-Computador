@@ -313,3 +313,25 @@ int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end) {
 
     return totalBytesRcvd;
 }
+
+int receiveMessageUDPWithTimeout(Sock *sfd, char *buffer, int size, int secs) {
+    int n, counter;
+    fd_set readfds;
+    struct timeval timeout;
+
+    FD_ZERO(&readfds);
+    FD_SET(sfd->fd, &readfds);
+        
+    timeout.tv_sec = secs;
+    timeout.tv_usec = 0;
+        
+    counter = select(sfd->fd+1, &readfds, NULL, NULL, &timeout);
+        
+    if (counter <= 0) {
+        printf("Reached timeout.\n");
+        return -1;
+    } else {
+        n = receiveMessage(sfd, buffer, size);
+        return n;
+    }
+}
