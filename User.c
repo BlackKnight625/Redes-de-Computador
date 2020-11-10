@@ -87,12 +87,28 @@ void userLoginCommand(){
     //user establishes a TCP session with the AS
     Sock *userASsession = newTCPClient(asip, asport);
 
+    if(userASsession == NULL) {
+        printf("Unable to create Socket to communicate with the AS\n");
+        return;
+    }
+
     //LOG UID pass
     sprintf(buffer, "LOG %s %s\n", UID, pass);
-    sendMessage(userASsession, buffer, strlen(buffer));
+    if(sendMessage(userASsession, buffer, strlen(buffer)) == 1) {
+        printf("Unable to send message to the AS\n");
+        closeSocket(userASsession);
+        return;
+    }
 
     //RLO status
     int n= receiveMessageUntilChar(userASsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from AS. Login failed.\n");
+        closeSocket(userASsession);
+        return;
+    }
+
     buffer[n]='\0';
 
     if(strcmp(buffer, "RLO OK\n")==0){
@@ -118,18 +134,38 @@ void userRequestCommand(){
     //user establishes a TCP session with the AS
     Sock *userASsession = newTCPClient(asip, asport);
 
+    if(userASsession == NULL) {
+        printf("Unable to create Socket to communicate with the AS\n");
+        return;
+    }
+
     //REQ UID RID Fop [Fname]
     if ( (strcmp(Fop, "R") ==0) || (strcmp(Fop, "U") ==0) || (strcmp(Fop, "D") ==0) ){
         sprintf(buffer, "REQ %s %s %s %s\n", UID, requestID, Fop, Fname); 
-        sendMessage(userASsession, buffer, strlen(buffer));
+        if(sendMessage(userASsession, buffer, strlen(buffer)) == -1) {
+            closeSocket(userASsession);
+            printf("Unable to send message to the AS\n");
+            return;
+        }
     }
     else{
         sprintf(buffer, "REQ %s %s %s\n", UID, requestID, Fop);
-        sendMessage(userASsession, buffer, strlen(buffer));
+        if(sendMessage(userASsession, buffer, strlen(buffer)) == -1) {
+            closeSocket(userASsession);
+            printf("Unable to send message to the AS\n");
+            return;
+        }
     }
     
     //RRQ status
     int n= receiveMessageUntilChar(userASsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from the AS.\n");
+        closeSocket(userASsession);
+        return;
+    }
+
     buffer[n]='\0'; 
 
     printf("%s", buffer);
@@ -147,12 +183,28 @@ void userValidatesVC(){
     //user establishes a TCP session with the AS
     Sock *userASsession = newTCPClient(asip, asport);
 
+    if(userASsession == NULL) {
+        printf("Unable to create Socket to communicate with the AS\n");
+        return;
+    }
+
     //AUT UID RID VC
     sprintf(buffer, "AUT %s %s %s\n", UID, requestID, VC);
-    sendMessage(userASsession, buffer, strlen(buffer));
+    if(sendMessage(userASsession, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the AS\n");
+        closeSocket(userASsession);
+        return;
+    }
 
     //RAU TID
     int n= receiveMessageUntilChar(userASsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from the AS. Authentication failed.\n");
+        closeSocket(userASsession);
+        return;
+    }
+
     buffer[n]='\0';
 
     printf("%s", buffer);
@@ -180,15 +232,32 @@ void userRetrieveCommand(){
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
 
+    if(userFSsession == NULL) {
+        printf("Unable to create Socket to communicate with the FS\n");
+        return;
+    }
+
     //RTV UID TID Fname
     sprintf(buffer, "RTV %s %s %s\n", UID, TID, Fname);
-    sendMessage(userFSsession, buffer, strlen(buffer));
+    
+    if(sendMessage(userFSsession, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
 
     //RRT status [Fsize data]
     int nread = 0;
     for (int i = 0; i < 2; i++) {
         nread += receiveMessageUntilChar(userFSsession, buffer + nread, SIZE, ' ');
     }
+
+    if(nread < 0) {
+        printf("Unable to receive message from the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+
     buffer[nread] = '\0';
 
     sscanf(buffer, "RRT %s", status);
@@ -196,6 +265,13 @@ void userRetrieveCommand(){
     if(strcmp(status, "OK")==0){
 
         nread += receiveMessageUntilChar(userFSsession, buffer + nread, SIZE, ' '); // reads Fsize
+
+        if(nread < 0) {
+            printf("Unable to receive message from the FS\n");
+            closeSocket(userFSsession);
+            return;
+        }
+
         sscanf(buffer, "RRT OK %d", &Fsize);
 
         printf("%s (path: /%s/%s/%s)\n", Fname, pathname, UID, Fname);
@@ -212,7 +288,12 @@ void userRetrieveCommand(){
                 readingSize = Fsize;
             }
 
-            receiveMessage(userFSsession, buffer, readingSize);
+            if(receiveMessage(userFSsession, buffer, readingSize) == -1) {
+                printf("Unable to receive data from the FS\n");
+                closeSocket(userFSsession);
+                fclose(fp);
+                return;
+            }
 
             Fsize -= readingSize;
 
@@ -243,6 +324,11 @@ void userUploadCommand(){
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
 
+    if(userFSsession == NULL) {
+        printf("Unable to create Socket to communicate with the FS\n");
+        return;
+    }
+
     //Buffer size: UPL UID TID Fname Fsize data \n \0
     //              3+1+5+1+4+1+ x +1+ y +1+ z + 2   (z= sizeBytes)
 
@@ -264,12 +350,33 @@ void userUploadCommand(){
 
     //UPL UID TID Fname Fsize data
     sprintf(buffer, "UPL %s %s %s %d ", UID, TID, Fname, Fsize);
-    sendMessage(userFSsession, buffer, strlen(buffer));
-    sendMessage(userFSsession, data, Fsize);
-    sendMessage(userFSsession, "\n", 1);
+
+
+    if(sendMessage(userFSsession, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+    if(sendMessage(userFSsession, data, Fsize) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+    if(sendMessage(userFSsession, "\n", 1) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
 
     //RUP status
     int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+
     buffer[n]='\0';
 
     sscanf(buffer, "RUP %s\n", status);
@@ -300,12 +407,28 @@ void userDeleteCommand(){
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
 
+    if(userFSsession == NULL) {
+        printf("Unable to create a Socket to communicate with the FS\n");
+        return;
+    }
+
     //DEL UID TID Fname
     sprintf(buffer, "DEL %s %s %s\n", UID, TID, Fname);
-    sendMessage(userFSsession, buffer, strlen(buffer));
+    if(sendMessage(userFSsession, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
 
     //RDL status
     int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+
     buffer[n]='\0';
 
     sscanf(buffer, "RDL %s\n", status);
@@ -329,12 +452,29 @@ void userListCommand(){
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
 
+    if(userFSsession == NULL) {
+        printf("Unable to create a Socket to communicate with the FS\n");
+        return;
+    }
+
     //LST UID TID
     sprintf(buffer, "LST %s %s\n", UID, TID);
-    sendMessage(userFSsession, buffer, strlen(buffer));
+    
+    if(sendMessage(userFSsession, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
 
     //RLS N [Fname Fsize]*
     int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+
     buffer[n]='\0';
 
     n = 0;
@@ -392,12 +532,28 @@ void userRemoveCommand(){
     //user establishes a TCP session with the FS
     Sock *userFSsession = newTCPClient(fsip, fsport);
 
+    if(userFSsession == NULL) {
+        printf("Unable to create a Socket to communicate with the FS\n");
+        return;
+    }
+
     //REM UID TID
     sprintf(buffer, "REM %s %s\n", UID, TID);
-    sendMessage(userFSsession, buffer, strlen(buffer));
+    if(sendMessage(userFSsession, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
 
     //RRM status
     int n= receiveMessageUntilChar(userFSsession, buffer, SIZE, '\n');
+
+    if(n < 0) {
+        printf("Unable to receive message from the FS\n");
+        closeSocket(userFSsession);
+        return;
+    }
+
     buffer[n]='\0';
 
     sscanf(buffer, "RRM %s\n", status);

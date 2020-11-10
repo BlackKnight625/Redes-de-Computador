@@ -517,6 +517,7 @@ void upload(char* args, Sock* replySocket, char UID[]) {
 
         if(receiveMessage(replySocket, buffer, readingSize) == -1) {
             printf("Unable to receive data\n");
+            fclose(file);
             return;
         }
 
@@ -779,6 +780,11 @@ int main(int argc, char *argv[]) {
     //Creating socket that listens for new connections
     clientConnectionsSocket = newTCPServer(fsport);
 
+    if(clientConnectionsSocket == NULL) {
+        printf("Unable to create socket that receives connections\n");
+        return 1;
+    }
+
     //Tests
     /*
     list("", NULL, "1");
@@ -794,7 +800,8 @@ int main(int argc, char *argv[]) {
         socket = acquire(clientConnectionsSocket);
 
         if(socket == NULL) {
-            printf("Unable to create socket that receives connections\n");
+            printf("Unable to create Socket to deal with a client\n");
+            end();
             return 1;
         }
 
