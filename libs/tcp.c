@@ -1,5 +1,9 @@
 #include "tcp.h"
 
+/**
+ * Creates a new TCP Socket which serves as a Server, receiving messages at the given Port.
+ * Returns NULL if an error occurs
+ */
 Sock *newServerTCP(char *port) {
     struct addrinfo hints, *res;
     int n, errcode;
@@ -8,8 +12,8 @@ Sock *newServerTCP(char *port) {
     sfd->stype = TCP;
 
     if (sfd->fd == -1) {
-        fprintf(stderr, "failed to create an endpoint\n");
-        exit(1);
+        free(sfd);
+        return NULL;
     }
 
     memset(&hints, 0, sizeof(hints));
@@ -19,25 +23,32 @@ Sock *newServerTCP(char *port) {
 
     errcode = getaddrinfo(NULL, port, &hints, &res);
     if (errcode != 0) {
-        fprintf(stderr, "failed to get address info\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd);
+        return NULL;
     }
 
     n = bind(sfd->fd, res->ai_addr, res->ai_addrlen);
     if (n == -1) {
-        fprintf(stderr, "failed to bind\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd);
+        return NULL;
     }
 
     if (listen(sfd->fd, 5) == -1) {
-        fprintf(stderr, "failed to listen\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd);
+        return NULL;
     }
 
     freeaddrinfo(res);
     return sfd;
 }
 
+/**
+ * Returns a new TCP Socket whenever a new client is accepted.
+ * Returns NULL if an error occurred 
+ */
 Sock *acquireTCP(int fd) {
     socklen_t addrlen;
     struct sockaddr_in addr;
@@ -46,8 +57,8 @@ Sock *acquireTCP(int fd) {
     newfd->stype = TCP;
     newfd->fd = accept(fd, (struct sockaddr *) &addr, &addrlen);
     if (newfd->fd == -1) {
-        fprintf(stderr, "failed to accept\n");
-        exit(1);
+        free(newfd);
+        return NULL;
     }
     return newfd;
 }
@@ -59,8 +70,7 @@ int sendMessageTCP(int sfd, char *buffer, int size) {
     while (nleft > 0) {
         nwritten = write(sfd,buffer,size);
         if(nwritten <= 0) {
-            fprintf(stderr, "failed to write\n");
-            exit(1);
+            return -1;
         }
         nleft -= nwritten;
         buffer += nwritten;
@@ -75,8 +85,7 @@ int receiveMessageTCP(int sfd, char *buffer, int size) {
     while(nleft > 0) { 
         bytesRead = read(sfd, buffer, nleft);
         if(bytesRead == -1) {
-            fprintf(stderr, "failed to read\n");
-            exit(1);
+            return -1;
         } else if ( bytesRead == 0) {
             break;//closed by peer
         }
@@ -100,8 +109,8 @@ Sock *newClientTCP(char *hostname, char *port) {
     sfd->stype = TCP;
 
     if (sfd->fd == -1) {
-        fprintf(stderr, "failed to create an endpoint\n");
-        exit(1);
+        free(sfd);
+        return NULL;
     }
 
     memset(&hints, 0, sizeof(hints));
@@ -110,14 +119,16 @@ Sock *newClientTCP(char *hostname, char *port) {
 
     errcode = getaddrinfo(hostname, port, &hints, &res);
     if (errcode != 0) {
-        fprintf(stderr, "failed to get address info\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd);
+        return NULL;
     }
 
     n = connect(sfd->fd, res->ai_addr, res->ai_addrlen);
     if (n == -1) {
-        fprintf(stderr, "failed to connect\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd);
+        return NULL;
     }
 
     freeaddrinfo(res);

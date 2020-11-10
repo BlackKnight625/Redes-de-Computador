@@ -12,8 +12,9 @@ Sock *newServerUDP(char *port) {
     sfd->stype = UDP;
 
     if (sfd->fd == -1) {
-        fprintf(stderr, "failed to create an endpoint\n");
-        exit(1);
+        free(sfd->addr);
+        free(sfd);
+        return NULL;
     }
 
     // defines the socket protocols
@@ -25,15 +26,19 @@ Sock *newServerUDP(char *port) {
     // returns the list of address structures to bind to
     errcode = getaddrinfo(NULL, port, &hints, &res);
     if (errcode != 0) {
-        fprintf(stderr, "failed to get address info\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd->addr);
+        free(sfd);
+        return NULL;
     }
 
     // binds the socket to the address given by res->addr
     n = bind(sfd->fd, res->ai_addr, res->ai_addrlen);
     if (n == -1) {
-        fprintf(stderr, "failed to bind\n");
-        exit(1);
+        close(sfd->fd);
+        freeaddrinfo(res);
+        free(sfd);
+        return NULL;
     }
 
     // no longer needed
@@ -45,20 +50,14 @@ int receiveMessageUDP(Sock *sfd, char *buffer, int size) {
     int n;
     socklen_t addrlen = sizeof(struct sockaddr_in);
     n = recvfrom(sfd->fd, buffer, 128, 0, sfd->addr, &addrlen);
-    if (n == -1) {
-        fprintf(stderr, "failed to receive message\n");
-        exit(1);
-    }
+    
     return n;
 }
 
 int sendMessageUDP(Sock *sfd, char *buffer, int size) {
     int n;
     n = sendto(sfd->fd, buffer, size, 0, sfd->addr, (socklen_t)sizeof(struct sockaddr_in));
-    if (n == -1) {
-        fprintf(stderr, "failed to send message\n");
-        exit(1);
-    }
+    
     return n;
 }
 
@@ -86,8 +85,8 @@ Sock *newClientUDP(char *hostname, char *port) {
     sfd->stype = UDP;
 
     if (sfd->fd == -1) {
-        fprintf(stderr, "failed to create an endpoint\n");
-        exit(1);
+        free(sfd);
+        return NULL;
     }
 
     // defines the socket protocols
@@ -99,8 +98,9 @@ Sock *newClientUDP(char *hostname, char *port) {
     // in this case, the given hostname and port
     errcode = getaddrinfo(hostname, port, &hints, &res);
     if (errcode != 0) {
-        fprintf(stderr, "failed to get address info\n");
-        exit(1);
+        close(sfd->fd);
+        free(sfd);
+        return NULL;
     }
 
     sfd->addr = res->ai_addr;

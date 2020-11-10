@@ -35,9 +35,18 @@ int registerUser(char *uid, char *pw) {
     char op[COMMAND_LENGTH+1], status[4];
     Sock *sfd = newUDPClient(asip, asport);
 
+    if(sfd == NULL) {
+        printf("Unable to create a Socket to communicate with the AS\n");
+        return FALSE;
+    }
+
     memset(buffer, 0, SIZE);
     sprintf(buffer, "REG %s %s %s %s\n", uid, pw, pdip, pdport);
-    sendMessage(sfd, buffer, strlen(buffer));
+    if(sendMessage(sfd, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the AS\n");
+        closeSocket(sfd);
+        return FALSE;
+    }
 
     int replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
 
@@ -48,7 +57,7 @@ int registerUser(char *uid, char *pw) {
     }
 
     if (replySize < 0) {
-        printf("Falied to receive message from AS\n");
+        printf("Failed to receive message from AS\n");
         closeSocket(sfd);
         return FALSE;
     }
@@ -72,9 +81,17 @@ int unregisterUser(User *user) {
     char op[COMMAND_LENGTH+1], status[4];
     Sock *sfd = newUDPClient(asip, asport);
 
+    if(sfd == NULL) {
+        printf("Unable to create a Socket to communicate with the AS\n");
+    }
+
     memset(buffer, 0, SIZE);
     sprintf(buffer, "UNR %s %s\n", user->uid, user->pw);
-    sendMessage(sfd, buffer, strlen(buffer));
+    if(sendMessage(sfd, buffer, strlen(buffer)) == -1) {
+        printf("Unable to send message to the AS\n");
+        closeSocket(sfd);
+        return FALSE;
+    }
 
     int replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
 
@@ -171,6 +188,11 @@ void processCommands() {
 
     Sock *sfd = newUDPServer(pdport);
 
+    if(sfd == NULL) {
+        printf("Unable to create a Socket that receives commands\n");
+        exit(1);
+    }
+
     while (1) {
         FD_ZERO(&readfds);
         FD_SET(fd, &readfds);
@@ -184,7 +206,7 @@ void processCommands() {
         counter = select(maxfd+1, &readfds, NULL, NULL, (struct timeval *)NULL);
         
         if (counter <= 0) {
-            printf("Reached timeout.\n");
+            printf("An error has occurred while waiting for messages\n");
         }
         
         if (FD_ISSET(fd, &readfds)) {
