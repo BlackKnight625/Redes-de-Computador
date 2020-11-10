@@ -524,7 +524,7 @@ void processCommands() {
 
     pthread_t thread;
 
-    pthread_create(&thread, NULL, getUDPrequests, (void *)sfdUDP);
+    pthread_create(&thread, (pthread_attr_t *) NULL, &getUDPrequests, (void *)sfdUDP);
 
     while (TRUE) {
         Sock *newSock = acquire(sfdTCP);
@@ -532,7 +532,7 @@ void processCommands() {
             printf("Unable to create Socket to deal with a client\n");
             continue;
         }
-        pthread_create(&thread, NULL, getUserRequests, (void*)newSock);
+        pthread_create(&thread, (pthread_attr_t *) NULL, &getUserRequests, (void*)newSock);
     }
 }
 
