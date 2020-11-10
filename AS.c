@@ -249,7 +249,7 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     Sock *sfd = newUDPClient(user->pdip, user->pdport);
     if (sfd == NULL) {
-        fprintf(stderr, "Falied to create a new UDP client\n");
+        fprintf(stderr, "Failed to create a new UDP client\n");
         return FALSE;
     }
 
@@ -264,6 +264,7 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
 
     if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
         fprintf(stderr, "Unable to send message to PD\n");
+        closeSocket(sfd);
         return FALSE;
     }
 
@@ -273,13 +274,14 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
         printf("Retransmiting\n");
         if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
             fprintf(stderr, "Unable to send message to PD\n");
+            closeSocket(sfd);
             return FALSE;
         }
         replySize = receiveMessageUDPWithTimeout(sfd, buffer, SIZE, 1);
     }
 
     if (replySize < 0) {
-        printf("Falied to receive message from PD\n");
+        printf("Failed to receive message from PD\n");
         closeSocket(sfd);
         return FALSE;
     }
