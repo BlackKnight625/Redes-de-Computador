@@ -209,7 +209,12 @@ Sock *newTCPServer(char *port) {
 }
 
 Sock *acquire(Sock *sfd) {
-    return acquireTCP(sfd->fd);
+    if(sfd->stype == TCP) {
+        return acquireTCP(sfd->fd);
+    }
+    else {
+        return NULL;
+    }
 }
 
 int sendMessage(Sock *sfd, char *buffer, int size) {
