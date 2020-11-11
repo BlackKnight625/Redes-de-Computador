@@ -1,5 +1,7 @@
 are there any issues with locks and threads in AS?
 
+O PD não pode fazer REG 2 vezes do mesmo user
+
 Dúvidas:
  Q: Fazer exit no User não faz log out do AS?
  A: exit faz logout ou seja fecha o socket, (remove o registo?)
