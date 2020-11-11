@@ -562,8 +562,10 @@ void userRemoveCommand(){
         printf("This command was not recognized\n");
     }
 
-    //closes the TCP session
+    //closes the TCP session with FS
     closeSocket(userFSsession);
+    //closes the TCP session with AS
+    closeSocket(userASsession);
 }
 
 
