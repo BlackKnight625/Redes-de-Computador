@@ -570,7 +570,9 @@ void userRemoveCommand(){
 
 
 void userExitCommand(){
-    closeSocket(userASsession);
+    if (userASsession != NULL) {
+        closeSocket(userASsession);
+    }
     delete(myMap);
     exit(0);
 }
