@@ -166,13 +166,30 @@ void *doUDPrequests(Sock *sfd) {
                 isRegistered = TRUE;
                 break;
             }
+            user = user->next;
         }
         pthread_rwlock_unlock(&rwlockUsersList);
 
         // checks if user id and password are valid
         if (!isRegistered && validUID(uid) && validPASS(pw)) {
-            sprintf(buffer, "RRG OK\n");
-            addUser(users, uid, pw, pdip, pdport);
+
+            // checks if user exists
+            User *user = getUser(users, uid);
+            if (user != NULL && !user->isOn) {
+                sprintf(buffer, "RRG OK\n");
+                strcpy(user->pdip, pdip);
+                strcpy(user->pdport, pdport);
+                user->isOn = TRUE;
+            } else if (user != NULL) {
+                sprintf(buffer, "RRG NOK\n");
+            } else {
+                sprintf(buffer, "RRG OK\n");
+                addUser(users, uid, pw, pdip, pdport);
+            }
+
+            if (user != NULL) {
+                pthread_mutex_unlock(&(user->mutex));
+            }
         } else {
             sprintf(buffer, "RRG NOK\n");
         }

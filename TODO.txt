@@ -1,5 +1,3 @@
 are there any issues with locks and threads in AS?
 
-O PD não pode fazer REG 2 vezes do mesmo user
-
 Dúvidas:
