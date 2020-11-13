@@ -327,6 +327,8 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
         }
         put(user->tids, newTID, buffer);
 
+        print(user->tids);
+
         put(user->r2t, rid, newTID);
         incrNumber(newTID);
         

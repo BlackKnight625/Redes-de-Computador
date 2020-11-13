@@ -123,7 +123,7 @@ int unregisterUser(User *user) {
 
 enum command keyboardCommand(User *user) {
     char buffer[SIZE];
-    char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
+    char op[5], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
 
     memset(buffer, 0, SIZE);
     fgets(buffer, SIZE, stdin);
