@@ -175,7 +175,7 @@ void *doUDPrequests(Sock *sfd) {
 
             // checks if user exists
             User *user = getUser(users, uid);
-            if (user != NULL && !user->isOn) {
+            if (user != NULL && !user->isOn && strcmp(user->pw, pw) == 0) {
                 sprintf(buffer, "RRG OK\n");
                 strcpy(user->pdip, pdip);
                 strcpy(user->pdport, pdport);
@@ -326,6 +326,8 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
             sprintf(buffer, "%s %s", fop, fname);
         }
         put(user->tids, newTID, buffer);
+
+	print(user->tids);
 
         put(user->r2t, rid, newTID);
         incrNumber(newTID);
