@@ -1,3 +1,5 @@
 are there any issues with locks and threads in AS?
 
+script5
+
 Dúvidas:

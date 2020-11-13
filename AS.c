@@ -175,7 +175,7 @@ void *doUDPrequests(Sock *sfd) {
 
             // checks if user exists
             User *user = getUser(users, uid);
-            if (user != NULL && !user->isOn) {
+            if (user != NULL && !user->isOn && strcmp(user->pw, pw) == 0) {
                 sprintf(buffer, "RRG OK\n");
                 strcpy(user->pdip, pdip);
                 strcpy(user->pdport, pdport);
