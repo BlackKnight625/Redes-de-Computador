@@ -349,11 +349,12 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     int fileSize;
     int sizeRead;
     int replySize;
-    char fileSizeStr[10];
+    char fileSizeStr[20];
     int fileSizeStrSize;
     char ok[] = "OK ";
     int bytesLeft;
     int totalBytes;
+    char *buffer, *replyBuffer;
 
     if(!dirExists(UID)) {
         reply(retrieveReply, errorNotOKReply, replySocket, -1);
@@ -399,12 +400,13 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     sprintf(fileSizeStr, "%d", fileSize);
 
     fileSizeStrSize = strlen(fileSizeStr);
-    replySize = fileSize + 4 + 3 + fileSizeStrSize + 3; 
-    /*File size + 4 chars for "RRT "", + 3 chars for "OK " + size of the number as a string + 3 chars for " ", another for '\n'
-    and '\0'*/
 
-    char buffer[fileSize + 1];
-    char replyBuffer[replySize + 1];
+    replySize = fileSize + 4 + 3 + fileSizeStrSize + 6; 
+    /*File size + 4 chars for "RRT "", + 3 chars for "OK " + size of the number as a string + 3 chars for " ", another for '\n'
+    and '\0', and 3 more for safety*/
+
+    buffer = (char*) malloc(sizeof(char) * (fileSize + 1));
+    replyBuffer = (char*) malloc(sizeof(char) * (replySize + 1));
 
     sizeRead = fread(buffer, sizeof(char), fileSize, file);
 
