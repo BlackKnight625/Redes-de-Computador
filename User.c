@@ -620,7 +620,7 @@ void userProcess() {
                 strcpy(Fname, arg2);
                 userDeleteCommand();
             }
-            else if ( strcmp(arg1, requestCommand)==0 ){
+            else if ( strcmp(arg1, requestCommand)==0 && (strcmp(arg1, "X") == 0 || strcmp(arg1, "L") == 0)){
                 strcpy(Fop, arg2);
                 userRequestCommand();
             }
