@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "tcp.h"
 #include "udp.h"
 
@@ -32,6 +34,7 @@ int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end);
 int receiveMessageUDPWithTimeout(Sock *sfd, char *buffer, int size, int secs);
 
 char *getHostIp(Sock *sfd);
+char *getHostPort(Sock *sfd);
 
 /*Verifies if the given command is big enough to be a command, to prevent single chars or only 2 chars
 from being considered, for example*/
