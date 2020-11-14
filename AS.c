@@ -306,10 +306,14 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     if (getWords(buffer) == 3 && strcmp(op, "RVC") == 0 && strcmp(status, "OK") == 0) {
         // first delete the non used request IDs if there are any
         Element *oldRID = user->rids->elements;
+        char oldRid[RID_LENGTH+1];
+        if (oldRID != NULL) {
+            strcpy(oldRid, oldRID->key);
+        }
         Element *oldTID = user->tids->elements;
         if (oldRID != NULL) {
-            removeElement(user->rids, oldRID->key);
-            removeElement(user->r2t, oldRID->key);
+            removeElement(user->rids, oldRid);
+            removeElement(user->r2t, oldRid);
         }
         if(oldTID != NULL) {
             removeElement(user->tids, oldTID->key);

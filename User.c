@@ -166,7 +166,11 @@ void userRequestCommand(){
 
     buffer[n]='\0'; 
 
-    printf("%s", buffer);
+    if (strcmp(buffer, "RRQ OK\n") == 0) {
+        printf("Successful request - Check VC on PD.\n");
+    } else {
+        printf("Unsuccessful request.\n");
+    }
 }
 
 
@@ -620,7 +624,7 @@ void userProcess() {
                 strcpy(Fname, arg2);
                 userDeleteCommand();
             }
-            else if ( strcmp(arg1, requestCommand)==0 && (strcmp(arg1, "X") == 0 || strcmp(arg1, "L") == 0)){
+            else if ( strcmp(arg1, requestCommand)==0 && (strcmp(arg2, "X") == 0 || strcmp(arg2, "L") == 0)){
                 strcpy(Fop, arg2);
                 userRequestCommand();
             }
