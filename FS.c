@@ -55,8 +55,6 @@ char errorNotOKReply[] = "NOK";
 char errorInvalidTIDReply[] = "INV";
 char errorEOFReply[] = "EOF";
 
-char closeConnectionCommand[] = "CLS";
-
 //Control variables
 int verboseMode = 0;
 int maxAmountFiles = 15;
@@ -146,12 +144,12 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
         printf("Unable to reply: ");
     }
     else {
-        printf("Replying: ");
+        //printf("Replying: ");
     }
     
-    for(j = 0; j <= i; j++) {
+    /*for(j = 0; j <= i; j++) {
         printf("%c", actualReply[j]);
-    }
+    }*/
 }
 
 /**
@@ -202,7 +200,9 @@ int validate(char* UID, char* TID, char* args, char* commandBeggining) {
     //Deleting the '\n'
     replyBuffer[replySize - 1] = '\0';
 
-    printf("Message from AS: %s\n", replyBuffer);
+    if(verboseMode) {
+        printf("Received message from AS: %sIP: %s, Port: %s\n", replyBuffer, asip, asport);
+    }
 
     sscanf(replyBuffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
 
@@ -287,11 +287,6 @@ void list(char* args, Sock* replySocket, char UID[]) {
     int amountFiles = 0;
     struct stat fileStats;
     char directoryName[SIZE];
-
-    if(!dirExists(UID)) {
-        reply(listReply, errorNotOKReply, replySocket, -1);
-        return;
-    }
 
     sprintf(directoryName, "%s/%s", pathname, UID);
 
@@ -650,7 +645,13 @@ void *newClientDealingThread(void* arg) {
 
     buffer[accumulatedBytes] = '\0';
 
-    printf("Receiving message: %s", buffer);
+    if (verboseMode) {
+        char *ip = getHostIp(tcpUserSocket);
+        char *port = getHostPort(tcpUserSocket);
+        printf("Received from User: %sIP: %s, Port: %s\n", buffer, ip, port);
+        free(ip);
+        free(port);
+    }
 
     if(pointToArgs(&args)) {
         //The command has args
@@ -689,9 +690,10 @@ void *newClientDealingThread(void* arg) {
                 else if(isCommand(removeCommand, buffer)) {
                     removeC(args, tcpUserSocket, UID);
                 }
-                else if(isCommand(closeConnectionCommand, buffer)) {
-                    //Closing connection
-                    printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
+                else {
+                    if(verboseMode) {
+                        printf("Received unknown command from \n");
+                    }
                 }
             }
             else {
