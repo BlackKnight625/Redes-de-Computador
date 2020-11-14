@@ -160,8 +160,6 @@ void getASCommands(Sock *sfd, User *user) {
 
     sscanf(buffer, "%s %s %s %s %s", op, uid, vc, fop, fname);
 
-    printf("%s", buffer);
-
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words >= 4 && words <= 5 && strcmp(op, "VLC") == 0) {
