@@ -110,7 +110,7 @@ int unregisterUser(User *user) {
 
     closeSocket(sfd);
 
-    if (strcmp(buffer, "RUN OK\n")) {
+    if (strcmp(buffer, "RUN OK\n") == 0) {
         printf("Unregister success.\n");
         return TRUE;
     } else {
