@@ -201,7 +201,7 @@ int validate(char* UID, char* TID, char* args, char* commandBeggining) {
     replyBuffer[replySize - 1] = '\0';
 
     if(verboseMode) {
-        printf("Received message from AS: %sIP: %s, Port: %s\n", replyBuffer, asip, asport);
+        printf("Received message from AS: %s\nIP: %s, Port: %s\n", replyBuffer, asip, asport);
     }
 
     sscanf(replyBuffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
