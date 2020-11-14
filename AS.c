@@ -1,8 +1,6 @@
 //AS
 
 #include "libs/helper.h"
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <pthread.h>
 
 #define SIZE 128
@@ -149,15 +147,20 @@ void *doUDPrequests(Sock *sfd) {
         return NULL;
     }
 
+    if (verboseMode) {
+        char *ip = getHostIp(sfd);
+        char *port = getHostPort(sfd);
+        printf("Received from PD: %sIP: %s, Port: %s\n", buffer, ip, port);
+        free(ip);
+        free(port);
+    }
+    
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, pdip, pdport);
     buffer[n] = '\0';
 
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words == 5 && strcmp(op, "REG") == 0) {
-        if (verboseMode) {
-            printf("Received from PD: %d, %s", buffer);
-        }
         // checks if this PD process already registered some user before
         int isRegistered = FALSE;
         pthread_rwlock_rdlock(&rwlockUsersList);
@@ -272,8 +275,6 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
         sprintf(buffer, "VLC %s %s %s %s\n", user->uid, newVC, fop, fname);
     }
 
-    printf("sending vc: %s", buffer);
-
     if (sendMessage(sfd, buffer, strlen(buffer)) == -1) {
         fprintf(stderr, "Unable to send message to PD\n");
         closeSocket(sfd);
@@ -299,6 +300,14 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     }
 
     buffer[replySize] = '\0';
+
+    if (verboseMode) {
+        char *ip = getHostIp(sfd);
+        char *port = getHostPort(sfd);
+        printf("Received from PD: %sIP: %s, Port: %s\n", buffer, ip, port);
+        free(ip);
+        free(port);
+    }
 
     closeSocket(sfd);
 
@@ -351,6 +360,7 @@ int doRequest(Sock *sfd, char *userID) {
     char buffer[SIZE];
     char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
     char vc[VALIDATION_CODE_LENGTH+1], fname[FNAME_LENGTH+1];
+    char *ip, *port;
     
     memset(buffer, 0, SIZE);
     int n = receiveMessageUntilChar(sfd, buffer, SIZE, '\n');
@@ -370,7 +380,14 @@ int doRequest(Sock *sfd, char *userID) {
         return -1;
     }
 
-    printf("words: %d, %s", getWords(buffer), buffer);
+    if (verboseMode) {
+        ip = getHostIp(sfd);
+        port = getHostPort(sfd);
+        printf("Received from User: %sIP: %s, Port: %s\n", buffer, ip, port);
+        free(ip);
+        free(port);
+    }
+
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, vc, fname);
 
     User *user = getUser(users, uid);

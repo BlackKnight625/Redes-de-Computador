@@ -367,3 +367,19 @@ char *getHostIp(Sock *sfd) {
     strcpy(ip, ip_addr);
     return ip;
 }
+
+char *getHostPort(Sock *sfd) {
+    char ai_port[7];
+    socklen_t addrlen;
+    struct sockaddr_in addr;
+    addrlen = sizeof(addr);
+    if (getpeername(sfd->fd, (struct sockaddr *) &addr, &addrlen) != 0) {
+        fprintf(stderr, "unable to get peer name\n");
+        return NULL;
+    }
+
+    sprintf(ai_port, "%d", ntohs(addr.sin_port));
+    char *port = (char*)malloc(sizeof(char)*(strlen(ai_port)+1));
+    strcpy(port, ai_port);
+    return port;
+}
