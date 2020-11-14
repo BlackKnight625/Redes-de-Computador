@@ -148,11 +148,8 @@ void *doUDPrequests(Sock *sfd) {
     }
 
     if (verboseMode) {
-        char *ip = getHostIp(sfd);
-        char *port = getHostPort(sfd);
-        printf("Received from PD: %sIP: %s, Port: %s\n", buffer, ip, port);
-        free(ip);
-        free(port);
+        struct sockaddr_in *sin = (struct sockaddr_in *) (sfd->addr);
+        printf("Received Message: %sIP: %s, Port: %d\n", buffer, inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
     }
     
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, pdip, pdport);
@@ -302,11 +299,8 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     buffer[replySize] = '\0';
 
     if (verboseMode) {
-        char *ip = getHostIp(sfd);
-        char *port = getHostPort(sfd);
-        printf("Received from PD: %sIP: %s, Port: %s\n", buffer, ip, port);
-        free(ip);
-        free(port);
+        struct sockaddr_in *sin = (struct sockaddr_in *) (sfd->addr);
+        printf("Received from PD: %sIP: %s, Port: %d\n", buffer, inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
     }
 
     closeSocket(sfd);
