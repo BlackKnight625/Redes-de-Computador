@@ -55,8 +55,6 @@ char errorNotOKReply[] = "NOK";
 char errorInvalidTIDReply[] = "INV";
 char errorEOFReply[] = "EOF";
 
-char closeConnectionCommand[] = "CLS";
-
 //Control variables
 int verboseMode = 0;
 int maxAmountFiles = 15;
@@ -123,6 +121,10 @@ void reply(char replyCommand[], char reply[], Sock* replySocket, int replySize) 
     int i = 0, j = 0;
     int replyLength = replySize == -1 ? strlen(reply) : replySize;
     char actualReply[COMMAND_LENGTH + 10 + replyLength];
+
+    if(verboseMode) {
+        printf("Received reply request from: \n");
+    }
 
     //Copying the reply command to the actual reply
     for(; i < COMMAND_LENGTH; i++) {
@@ -202,7 +204,9 @@ int validate(char* UID, char* TID, char* args, char* commandBeggining) {
     //Deleting the '\n'
     replyBuffer[replySize - 1] = '\0';
 
-    printf("Message from AS: %s\n", replyBuffer);
+    if(verboseMode) {
+        printf("Message from AS: %s\n", replyBuffer);
+    }
 
     sscanf(replyBuffer, "%s %s %s %s %s", treatedReplyBuffers[0], treatedReplyBuffers[1], treatedReplyBuffers[2], treatedReplyBuffers[3], treatedReplyBuffers[4]);
 
@@ -288,6 +292,10 @@ void list(char* args, Sock* replySocket, char UID[]) {
     struct stat fileStats;
     char directoryName[SIZE];
 
+    if(verboseMode) {
+        printf("Received list request from: \n");
+    }
+
     if(!dirExists(UID)) {
         reply(listReply, errorNotOKReply, replySocket, -1);
         return;
@@ -355,6 +363,10 @@ void retrieve(char* args, Sock* replySocket, char UID[]) {
     int bytesLeft;
     int totalBytes;
     char *buffer, *replyBuffer;
+
+    if(verboseMode) {
+        printf("Received retrieve request from: \n");
+    }
 
     if(!dirExists(UID)) {
         reply(retrieveReply, errorNotOKReply, replySocket, -1);
@@ -466,6 +478,10 @@ void upload(char* args, Sock* replySocket, char UID[]) {
     char buffer[REPLY_SIZE];
     int readingSize;
 
+    if(verboseMode) {
+        printf("Received upload request from: \n");
+    }
+
     sprintf(directoryName, "%s/%s", pathname, UID);
 
     if(sscanf(args, "%s %d\n", fileName, &fileSize) != 2) {
@@ -537,6 +553,10 @@ void deleteC(char* args, Sock* replySocket, char UID[]) {
     char fileName[FNAME_LENGTH + 1];
     char filePath[SIZE];
     int fileNameSize;
+
+    if(verboseMode) {
+        printf("Received delete request from: \n");
+    }
 
     strcpy(fileName, args);
 
@@ -650,8 +670,6 @@ void *newClientDealingThread(void* arg) {
 
     buffer[accumulatedBytes] = '\0';
 
-    printf("Receiving message: %s", buffer);
-
     if(pointToArgs(&args)) {
         //The command has args
 
@@ -689,9 +707,10 @@ void *newClientDealingThread(void* arg) {
                 else if(isCommand(removeCommand, buffer)) {
                     removeC(args, tcpUserSocket, UID);
                 }
-                else if(isCommand(closeConnectionCommand, buffer)) {
-                    //Closing connection
-                    printf("Closing connection of socket of FD %d\n", tcpUserSocket->fd);
+                else {
+                    if(verboseMode) {
+                        printf("Received unknown command from \n");
+                    }
                 }
             }
             else {
