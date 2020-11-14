@@ -152,11 +152,12 @@ void *doUDPrequests(Sock *sfd) {
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, pdip, pdport);
     buffer[n] = '\0';
 
-    printf("words: %d, %s", getWords(buffer), buffer);
-
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words == 5 && strcmp(op, "REG") == 0) {
+        if (verboseMode) {
+            printf("Received from PD: %d, %s", buffer);
+        }
         // checks if this PD process already registered some user before
         int isRegistered = FALSE;
         pthread_rwlock_rdlock(&rwlockUsersList);

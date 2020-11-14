@@ -351,3 +351,19 @@ int receiveMessageUDPWithTimeout(Sock *sfd, char *buffer, int size, int secs) {
         return n;
     }
 }
+
+char *getHostIp(Sock *sfd) {
+    char ip_addr[41];
+    socklen_t addrlen;
+    struct sockaddr_in addr;
+    addrlen = sizeof(addr);
+    if (getpeername(sfd->fd, (struct sockaddr *) &addr, &addrlen) != 0) {
+        fprintf(stderr, "unable to get peer name\n");
+        return NULL;
+    }
+
+    strcpy(ip_addr, inet_ntoa(addr.sin_addr));
+    char *ip = (char*)malloc(sizeof(char)*(strlen(ip_addr)+1));
+    strcpy(ip, ip_addr);
+    return ip;
+}
