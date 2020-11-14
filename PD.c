@@ -63,15 +63,14 @@ int registerUser(char *uid, char *pw) {
     }
 
     buffer[replySize] = '\0';
-    printf("%s", buffer);
 
     closeSocket(sfd);
 
-    sscanf(buffer, "%s %s", op, status);
-
-    if (getWords(buffer) == 2 && strcmp(op, "RRG") == 0 && strcmp(status, "OK") == 0) {
-        return TRUE; // successfuly added user
+    if (strcmp(buffer, "RRG OK\n") == 0) {
+        printf("Register success.\n");
+        return TRUE;
     } else {
+        printf("Failed to register.\n");
         return FALSE;
     }
 }
@@ -108,22 +107,21 @@ int unregisterUser(User *user) {
     }
 
     buffer[replySize] = '\0';
-    printf("%s", buffer);
 
     closeSocket(sfd);
 
-    sscanf(buffer, "%s %s", op, status);
-
-    if (getWords(buffer) == 2 && strcmp(op, "RUN") == 0 && strcmp(status, "OK") == 0) {
-        return TRUE; // successfuly unregistered user
+    if (strcmp(buffer, "RUN OK\n") == 0) {
+        printf("Unregister success.\n");
+        return TRUE;
     } else {
+        printf("Failed to unregister.\n");
         return FALSE;
     }
 }  
 
 enum command keyboardCommand(User *user) {
     char buffer[SIZE];
-    char op[COMMAND_LENGTH+1], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
+    char op[5], uid[UID_LENGTH+1], pw[PASS_LENGTH+1];
 
     memset(buffer, 0, SIZE);
     fgets(buffer, SIZE, stdin);
@@ -162,14 +160,22 @@ void getASCommands(Sock *sfd, User *user) {
 
     sscanf(buffer, "%s %s %s %s %s", op, uid, vc, fop, fname);
 
-    printf("%s", buffer);
-
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words >= 4 && words <= 5 && strcmp(op, "VLC") == 0) {
         if (strcmp(user->uid, uid) == 0) {
             sprintf(buffer, "RVC %s OK\n", uid);
-            printf("VC: %s\n", vc);
+            if (strcmp(fop, "U") == 0) {
+                printf("VC: %s, upload: %s\n", vc, fname);
+            } else if (strcmp(fop, "R") == 0) {
+                printf("VC: %s, retrieve: %s\n", vc, fname);
+            } else if (strcmp(fop, "D") == 0) {
+                printf("VC: %s, delete: %s\n", vc, fname);
+            } else if (strcmp(fop, "X") == 0) {
+                printf("VC: %s, remove\n", vc);
+            } else if (strcmp(fop, "L") == 0) {
+                printf("VC: %s, list\n", vc);
+            }
         } else {
             sprintf(buffer, "RVC %s NOK\n", uid);
         }
@@ -245,8 +251,6 @@ int main(int argc, char *argv[]) {
     if ((asport = get(myMap, "-p")) == NULL) { asport = AS_PORT; }
 
     processCommands();
-
-    printf("terminating...\n");
 
     // finishing program accordingly
     delete(myMap);

@@ -97,9 +97,7 @@ int receiveMessageTCP(int sfd, char *buffer, int size) {
 }
 
 void closeSocketTCP(Sock *sfd) {
-    if (close(sfd->fd) == -1) {
-        fprintf(stderr, "Error when closing fd\n");
-    }
+    close(sfd->fd);
     free(sfd);
 }
 

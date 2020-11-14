@@ -152,11 +152,12 @@ void *doUDPrequests(Sock *sfd) {
     sscanf(buffer, "%s %s %s %s %s", op, uid, pw, pdip, pdport);
     buffer[n] = '\0';
 
-    printf("words: %d, %s", getWords(buffer), buffer);
-
     int words = getWords(buffer);
     memset(buffer, 0, SIZE);
     if (words == 5 && strcmp(op, "REG") == 0) {
+        if (verboseMode) {
+            printf("Received from PD: %d, %s", buffer);
+        }
         // checks if this PD process already registered some user before
         int isRegistered = FALSE;
         pthread_rwlock_rdlock(&rwlockUsersList);
@@ -306,10 +307,14 @@ int sendValidationCode(User *user, char *rid, char *fop, char *fname) {
     if (getWords(buffer) == 3 && strcmp(op, "RVC") == 0 && strcmp(status, "OK") == 0) {
         // first delete the non used request IDs if there are any
         Element *oldRID = user->rids->elements;
+        char oldRid[RID_LENGTH+1];
+        if (oldRID != NULL) {
+            strcpy(oldRid, oldRID->key);
+        }
         Element *oldTID = user->tids->elements;
         if (oldRID != NULL) {
-            removeElement(user->rids, oldRID->key);
-            removeElement(user->r2t, oldRID->key);
+            removeElement(user->rids, oldRid);
+            removeElement(user->r2t, oldRid);
         }
         if(oldTID != NULL) {
             removeElement(user->tids, oldTID->key);

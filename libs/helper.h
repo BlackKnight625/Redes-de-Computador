@@ -31,6 +31,8 @@ Sock *newUDPClient(char *hostname, char *port);
 int receiveMessageUntilChar(Sock *sfd, char *buffer, int size, char end);
 int receiveMessageUDPWithTimeout(Sock *sfd, char *buffer, int size, int secs);
 
+char *getHostIp(Sock *sfd);
+
 /*Verifies if the given command is big enough to be a command, to prevent single chars or only 2 chars
 from being considered, for example*/
 int canBeACommand(const char command[]);

@@ -166,7 +166,11 @@ void userRequestCommand(){
 
     buffer[n]='\0'; 
 
-    printf("%s", buffer);
+    if (strcmp(buffer, "RRQ OK\n") == 0) {
+        printf("Successful request - Check VC on PD.\n");
+    } else {
+        printf("Unsuccessful request.\n");
+    }
 }
 
 
@@ -550,22 +554,24 @@ void userRemoveCommand(){
     sscanf(buffer, "RRM %s\n", status);
 
     if( strcmp(status, "OK")==0 ){
-        printf( "The user was removed\n");
+        printf( "The user was removed.\n");
+        //closes the TCP session with AS
+        closeSocket(userASsession);
     }
     else if( strcmp(status, "NOK")==0 ){
-        printf( "The user folder doesn't exist\n");
+        printf( "The user folder doesn't exist.\n");
+        //closes the TCP session with AS
+        closeSocket(userASsession);
     }
     else if (strcmp(status, "INV") == 0) {
-        printf("This command was not validated\n");
+        printf("This command was not validated.\n");
     }
     else if (strcmp(status, "ERR") == 0) {
-        printf("This command was not recognized\n");
+        printf("This command was not recognized.\n");
     }
 
     //closes the TCP session with FS
     closeSocket(userFSsession);
-    //closes the TCP session with AS
-    closeSocket(userASsession);
 }
 
 
@@ -620,7 +626,7 @@ void userProcess() {
                 strcpy(Fname, arg2);
                 userDeleteCommand();
             }
-            else if ( strcmp(arg1, requestCommand)==0 ){
+            else if ( strcmp(arg1, requestCommand)==0 && (strcmp(arg2, "X") == 0 || strcmp(arg2, "L") == 0)){
                 strcpy(Fop, arg2);
                 userRequestCommand();
             }
